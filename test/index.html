@@ -1,0 +1,284 @@
+<!doctype html> <html lang=en > <meta charset=UTF-8 > <meta name=viewport  content="width=device-width, initial-scale=1"> <link rel=stylesheet  href="/libs/highlight/github.min.css"> <link rel=stylesheet  href="/css/franklin.css"> <link rel=stylesheet  href="/css/jemdoc.css"> <link rel=icon  href="/assets/favicon.png"> <title>Bitcoin Price EDA</title> <table id=tlayout > <tr valign=top > <td id=layout-menu > <div class=menu-category >jemdoc</div> <div class="menu-item "><a href="/">home</a></div> <div class=menu-category >posts</div> <div class="menu-item "><a href="/menu1/">Code blocks</a></div> <div class="menu-item "><a href="/menu2/">More goodies</a></div> <div class="menu-item "><a href="/menu3/">Tags</a></div> <td id=layout-content > <div class=franklin-content ><h1 id=bitcoin_volatility ><a href="#bitcoin_volatility">Bitcoin volatility</a></h1> <pre><code class="r hljs">library(data.table)
+library(ggplot2)</code></pre> <pre><code class="r hljs">pth &lt;- <span class=hljs-string >&quot;../input/bitstampUSD_1-min_data/&quot;</span>
+dt &lt;- fread(paste0(pth,<span class=hljs-string >&quot;bitstampUSD_1-min_data_2012-01-01_to_2020-12-31.csv&quot;</span>))</code></pre> <pre><code class="r hljs"><span class=hljs-built_in >names</span>(dt) &lt;- gsub(pattern = <span class=hljs-string >&quot;\\(&quot;</span>,replacement = <span class=hljs-string >&quot;&quot;</span>,x = <span class=hljs-built_in >names</span>(dt))
+<span class=hljs-built_in >names</span>(dt) &lt;- gsub(pattern = <span class=hljs-string >&quot;\\)&quot;</span>,replacement = <span class=hljs-string >&quot;&quot;</span>,x = <span class=hljs-built_in >names</span>(dt))</code></pre> <pre><code class="r hljs">dt</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >##           Timestamp     Open     High      Low    Close Volume_BTC Volume_Currency</span>
+<span class=hljs-comment >##       1: 1325317920     4.39     4.39     4.39     4.39  0.4555809            2.00</span>
+<span class=hljs-comment >##       2: 1325317980      NaN      NaN      NaN      NaN        NaN             NaN</span>
+<span class=hljs-comment >##       3: 1325318040      NaN      NaN      NaN      NaN        NaN             NaN</span>
+<span class=hljs-comment >##       4: 1325318100      NaN      NaN      NaN      NaN        NaN             NaN</span>
+<span class=hljs-comment >##       5: 1325318160      NaN      NaN      NaN      NaN        NaN             NaN</span>
+<span class=hljs-comment >##      ---                                                                          </span>
+<span class=hljs-comment >## 4727773: 1609372560 28801.47 28829.42 28785.64 28829.42  0.9652210        27804.57</span>
+<span class=hljs-comment >## 4727774: 1609372620 28829.42 28863.90 28829.42 28857.06  2.3688312        68332.35</span>
+<span class=hljs-comment >## 4727775: 1609372680 28850.49 28900.52 28850.49 28882.82  2.4665898        71232.78</span>
+<span class=hljs-comment >## 4727776: 1609372740 28910.54 28911.52 28867.60 28881.30  7.3327730       211870.91</span>
+<span class=hljs-comment >## 4727777: 1609372800 28893.21 28928.49 28893.21 28928.49  5.7576794       166449.71</span>
+<span class=hljs-comment >##          Weighted_Price</span>
+<span class=hljs-comment >##       1:           4.39</span>
+<span class=hljs-comment >##       2:            NaN</span>
+<span class=hljs-comment >##       3:            NaN</span>
+<span class=hljs-comment >##       4:            NaN</span>
+<span class=hljs-comment >##       5:            NaN</span>
+<span class=hljs-comment >##      ---               </span>
+<span class=hljs-comment >## 4727773:       28806.43</span>
+<span class=hljs-comment >## 4727774:       28846.44</span>
+<span class=hljs-comment >## 4727775:       28879.06</span>
+<span class=hljs-comment >## 4727776:       28893.70</span>
+<span class=hljs-comment >## 4727777:       28909.17</span></code></pre>
+<p>Remove if nothing traded</p>
+<pre><code class="r hljs">dt &lt;- dt[!<span class=hljs-built_in >is.nan</span>(Volume_BTC)]
+dt</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >##           Timestamp     Open     High      Low    Close Volume_BTC Volume_Currency</span>
+<span class=hljs-comment >##       1: 1325317920     4.39     4.39     4.39     4.39  0.4555809         2.00000</span>
+<span class=hljs-comment >##       2: 1325346600     4.39     4.39     4.39     4.39 48.0000000       210.72000</span>
+<span class=hljs-comment >##       3: 1325350740     4.50     4.57     4.50     4.57 37.8622972       171.38034</span>
+<span class=hljs-comment >##       4: 1325350800     4.58     4.58     4.58     4.58  9.0000000        41.22000</span>
+<span class=hljs-comment >##       5: 1325391360     4.58     4.58     4.58     4.58  1.5020000         6.87916</span>
+<span class=hljs-comment >##      ---                                                                          </span>
+<span class=hljs-comment >## 3484301: 1609372560 28801.47 28829.42 28785.64 28829.42  0.9652210     27804.57213</span>
+<span class=hljs-comment >## 3484302: 1609372620 28829.42 28863.90 28829.42 28857.06  2.3688312     68332.35063</span>
+<span class=hljs-comment >## 3484303: 1609372680 28850.49 28900.52 28850.49 28882.82  2.4665898     71232.78446</span>
+<span class=hljs-comment >## 3484304: 1609372740 28910.54 28911.52 28867.60 28881.30  7.3327730    211870.91266</span>
+<span class=hljs-comment >## 3484305: 1609372800 28893.21 28928.49 28893.21 28928.49  5.7576794    166449.70932</span>
+<span class=hljs-comment >##          Weighted_Price</span>
+<span class=hljs-comment >##       1:       4.390000</span>
+<span class=hljs-comment >##       2:       4.390000</span>
+<span class=hljs-comment >##       3:       4.526411</span>
+<span class=hljs-comment >##       4:       4.580000</span>
+<span class=hljs-comment >##       5:       4.580000</span>
+<span class=hljs-comment >##      ---               </span>
+<span class=hljs-comment >## 3484301:   28806.429798</span>
+<span class=hljs-comment >## 3484302:   28846.441863</span>
+<span class=hljs-comment >## 3484303:   28879.056266</span>
+<span class=hljs-comment >## 3484304:   28893.695831</span>
+<span class=hljs-comment >## 3484305:   28909.166061</span></code></pre>
+<pre><code class="r hljs">dt[,TimestampUTC := as.POSIXct(Timestamp,origin = <span class=hljs-string >&quot;1970-01-01&quot;</span>,tz = <span class=hljs-string >&quot;UTC&quot;</span>)]</code></pre>
+<h2 id=temporal_trend ><a href="#temporal_trend">Temporal Trend</a></h2>
+<pre><code class="r hljs">dt[,date := lubridate::date(TimestampUTC)]
+dt[,time := lubridate::local_time(TimestampUTC,units=<span class=hljs-string >&quot;hours&quot;</span>)]</code></pre>
+<pre><code class="r hljs">keep_rws &lt;- <span class=hljs-built_in >c</span>(dt$date[-nrow(dt)] != dt$date[-<span class=hljs-number >1</span>],<span class=hljs-literal >FALSE</span>)
+dt_daily_close &lt;- dt[keep_rws]
+dt_daily_close</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >##        Timestamp     Open     High      Low    Close Volume_BTC Volume_Currency</span>
+<span class=hljs-comment >##    1: 1325350800     4.58     4.58     4.58     4.58   9.000000        41.22000</span>
+<span class=hljs-comment >##    2: 1325457900     5.00     5.00     5.00     5.00  10.100000        50.50000</span>
+<span class=hljs-comment >##    3: 1325534640     5.00     5.00     5.00     5.00  19.048000        95.24000</span>
+<span class=hljs-comment >##    4: 1325611620     5.29     5.29     5.29     5.29   4.010815        21.21721</span>
+<span class=hljs-comment >##    5: 1325699460     5.37     5.57     5.37     5.57  43.312196       235.74707</span>
+<span class=hljs-comment >##   ---                                                                          </span>
+<span class=hljs-comment >## 3281: 1609027140 26437.09 26466.28 26435.67 26466.28   1.339213     35419.34286</span>
+<span class=hljs-comment >## 3282: 1609113540 26217.19 26259.60 26217.19 26259.60   3.264809     85632.31260</span>
+<span class=hljs-comment >## 3283: 1609199940 27037.78 27050.00 27024.52 27037.91   3.536079     95595.13092</span>
+<span class=hljs-comment >## 3284: 1609286340 27371.72 27377.85 27355.99 27370.00   1.873968     51289.98054</span>
+<span class=hljs-comment >## 3285: 1609372740 28910.54 28911.52 28867.60 28881.30   7.332773    211870.91266</span>
+<span class=hljs-comment >##       Weighted_Price        TimestampUTC       date           time</span>
+<span class=hljs-comment >##    1:       4.580000 2011-12-31 17:00:00 2011-12-31 17.00000 hours</span>
+<span class=hljs-comment >##    2:       5.000000 2012-01-01 22:45:00 2012-01-01 22.75000 hours</span>
+<span class=hljs-comment >##    3:       5.000000 2012-01-02 20:04:00 2012-01-02 20.06667 hours</span>
+<span class=hljs-comment >##    4:       5.290000 2012-01-03 17:27:00 2012-01-03 17.45000 hours</span>
+<span class=hljs-comment >##    5:       5.442972 2012-01-04 17:51:00 2012-01-04 17.85000 hours</span>
+<span class=hljs-comment >##   ---                                                             </span>
+<span class=hljs-comment >## 3281:   26447.887700 2020-12-26 23:59:00 2020-12-26 23.98333 hours</span>
+<span class=hljs-comment >## 3282:   26228.891247 2020-12-27 23:59:00 2020-12-27 23.98333 hours</span>
+<span class=hljs-comment >## 3283:   27034.218026 2020-12-28 23:59:00 2020-12-28 23.98333 hours</span>
+<span class=hljs-comment >## 3284:   27369.727449 2020-12-29 23:59:00 2020-12-29 23.98333 hours</span>
+<span class=hljs-comment >## 3285:   28893.695831 2020-12-30 23:59:00 2020-12-30 23.98333 hours</span></code></pre>
+<pre><code class="r hljs">ggplot(dt_daily_close,aes(x=date,y=Close)) +
+  geom_line()</code></pre>
+<p><img src="/assets/unnamed-chunk-9-1.png" alt="plot of chunk unnamed-chunk-9" /></p>
+<pre><code class="r hljs">ggplot(dt_daily_close,aes(x=date,y=<span class=hljs-built_in >log</span>(Close))) +
+  geom_line()</code></pre>
+<p><img src="/assets/unnamed-chunk-10-1.png" alt="plot of chunk unnamed-chunk-10" /></p>
+<pre><code class="r hljs">dt_daily_ret &lt;- dt_daily_close[,.(<span class=hljs-built_in >return</span> = diff(<span class=hljs-built_in >log</span>(Close)))]
+dt_daily_ret[,date := dt_daily_close$date[-<span class=hljs-number >1</span>]]
+ggplot(dt_daily_ret,aes(x=date,y=<span class=hljs-built_in >return</span>)) +
+         geom_line()</code></pre>
+<p><img src="/assets/unnamed-chunk-11-1.png" alt="plot of chunk unnamed-chunk-11" /></p>
+<pre><code class="r hljs">ggplot(dt_daily_ret,aes(x=<span class=hljs-built_in >return</span>)) +
+         geom_histogram(aes(y=..density..),col=<span class=hljs-string >&quot;white&quot;</span>,bins=<span class=hljs-number >50</span>) +
+stat_function(fun = dnorm, args = <span class=hljs-built_in >list</span>(mean = mean(dt_daily_ret$<span class=hljs-built_in >return</span>),
+                                       sd = sd(dt_daily_ret$<span class=hljs-built_in >return</span>)))</code></pre>
+<p><img src="/assets/unnamed-chunk-12-1.png" alt="plot of chunk unnamed-chunk-12" /></p>
+<pre><code class="r hljs">acf(dt_daily_ret$<span class=hljs-built_in >return</span>)</code></pre>
+<p><img src="/assets/unnamed-chunk-13-1.png" alt="plot of chunk unnamed-chunk-13" /></p>
+<pre><code class="r hljs">pacf(dt_daily_ret$<span class=hljs-built_in >return</span>)</code></pre>
+<p><img src="/assets/unnamed-chunk-14-1.png" alt="plot of chunk unnamed-chunk-14" /></p>
+<pre><code class="r hljs">acf(dt_daily_ret$<span class=hljs-built_in >return</span>^<span class=hljs-number >2</span>)</code></pre>
+<p><img src="/assets/unnamed-chunk-15-1.png" alt="plot of chunk unnamed-chunk-15" /></p>
+<pre><code class="r hljs">Box.test(dt_daily_ret$<span class=hljs-built_in >return</span>^<span class=hljs-number >2</span>)</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## </span>
+<span class=hljs-comment >## 	Box-Pierce test</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## data:  dt_daily_ret$return^2</span>
+<span class=hljs-comment >## X-squared = 398.96, df = 1, p-value &lt; 2.2e-16</span></code></pre>
+<h3 id=arch_models ><a href="#arch_models">ARCH models</a></h3>
+<pre><code class="r hljs">a0 &lt;- 0.2
+a1 &lt;- 0.4
+n &lt;- 1000L
+ee &lt;- rnorm(n+<span class=hljs-number >1</span>)
+zt &lt;- numeric(<span class=hljs-built_in >length</span> = n+<span class=hljs-number >1</span>)
+zt[<span class=hljs-number >1</span>] &lt;- ee[<span class=hljs-number >1</span>]
+<span class=hljs-keyword >for</span> (i <span class=hljs-keyword >in</span> <span class=hljs-number >2</span>:(n+<span class=hljs-number >1</span>)) {
+  ht &lt;- a0 + a1*zt[i-<span class=hljs-number >1</span>]^<span class=hljs-number >2</span>
+  zt[i] &lt;- ee[i]*<span class=hljs-built_in >sqrt</span>(ht)
+}
+plot(zt,type=<span class=hljs-string >&quot;l&quot;</span>)</code></pre>
+<p><img src="/assets/unnamed-chunk-17-1.png" alt="plot of chunk unnamed-chunk-17" /></p>
+<pre><code class="r hljs">acf(zt^<span class=hljs-number >2</span>)</code></pre>
+<p><img src="/assets/unnamed-chunk-18-1.png" alt="plot of chunk unnamed-chunk-18" /></p>
+<pre><code class="r hljs">library(fGarch)</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## Loading required package: timeDate</span></code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## Loading required package: timeSeries</span></code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## Loading required package: fBasics</span></code></pre>
+<pre><code class="r hljs">m1 &lt;- garchFit(~arma(<span class=hljs-number >0</span>,<span class=hljs-number >0</span>)+garch(<span class=hljs-number >2</span>,<span class=hljs-number >0</span>),dt_daily_ret$<span class=hljs-built_in >return</span>)</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## </span>
+<span class=hljs-comment >## Series Initialization:</span>
+<span class=hljs-comment >##  ARMA Model:                arma</span>
+<span class=hljs-comment >##  Formula Mean:              ~ arma(0, 0)</span>
+<span class=hljs-comment >##  GARCH Model:               garch</span>
+<span class=hljs-comment >##  Formula Variance:          ~ garch(2, 0)</span>
+<span class=hljs-comment >##  ARMA Order:                0 0</span>
+<span class=hljs-comment >##  Max ARMA Order:            0</span>
+<span class=hljs-comment >##  GARCH Order:               2 0</span>
+<span class=hljs-comment >##  Max GARCH Order:           2</span>
+<span class=hljs-comment >##  Maximum Order:             2</span>
+<span class=hljs-comment >##  Conditional Dist:          norm</span>
+<span class=hljs-comment >##  h.start:                   3</span>
+<span class=hljs-comment >##  llh.start:                 1</span>
+<span class=hljs-comment >##  Length of Series:          3284</span>
+<span class=hljs-comment >##  Recursion Init:            mci</span>
+<span class=hljs-comment >##  Series Scale:              0.0463792</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Parameter Initialization:</span>
+<span class=hljs-comment >##  Initial Parameters:          $params</span>
+<span class=hljs-comment >##  Limits of Transformations:   $U, $V</span>
+<span class=hljs-comment >##  Which Parameters are Fixed?  $includes</span>
+<span class=hljs-comment >##  Parameter Matrix:</span>
+<span class=hljs-comment >##                      U           V     params includes</span>
+<span class=hljs-comment >##     mu     -0.57443969   0.5744397 0.05744397     TRUE</span>
+<span class=hljs-comment >##     omega   0.00000100 100.0000000 0.10000000     TRUE</span>
+<span class=hljs-comment >##     alpha1  0.00000001   1.0000000 0.05000000     TRUE</span>
+<span class=hljs-comment >##     alpha2  0.00000001   1.0000000 0.05000000     TRUE</span>
+<span class=hljs-comment >##     gamma1 -0.99999999   1.0000000 0.10000000    FALSE</span>
+<span class=hljs-comment >##     gamma2 -0.99999999   1.0000000 0.10000000    FALSE</span>
+<span class=hljs-comment >##     delta   0.00000000   2.0000000 2.00000000    FALSE</span>
+<span class=hljs-comment >##     skew    0.10000000  10.0000000 1.00000000    FALSE</span>
+<span class=hljs-comment >##     shape   1.00000000  10.0000000 4.00000000    FALSE</span>
+<span class=hljs-comment >##  Index List of Parameters to be Optimized:</span>
+<span class=hljs-comment >##     mu  omega alpha1 alpha2 </span>
+<span class=hljs-comment >##      1      2      3      4 </span>
+<span class=hljs-comment >##  Persistence:                  0.1 </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## --- START OF TRACE ---</span>
+<span class=hljs-comment >## Selected Algorithm: nlminb </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## R coded nlminb Solver: </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >##   0:     8046.2248: 0.0574440 0.100000 0.0500000 0.0500000</span>
+<span class=hljs-comment >##   1:     4450.5719: 0.0574406 0.987635 0.373533 0.377766</span>
+<span class=hljs-comment >##   2:     4441.8605: 0.0576335 0.762999 0.788219 0.543788</span>
+<span class=hljs-comment >##   3:     4290.8192: 0.0589024 0.395512 0.562630 0.795928</span>
+<span class=hljs-comment >##   4:     4233.2962: 0.0593005 0.359727 0.190320 0.464179</span>
+<span class=hljs-comment >##   5:     4230.2769: 0.0594168 0.595855 0.349403 0.0531660</span>
+<span class=hljs-comment >##   6:     4197.3473: 0.0593731 0.532303 0.319638 0.293113</span>
+<span class=hljs-comment >##   7:     4189.0905: 0.0593673 0.493945 0.299758 0.276815</span>
+<span class=hljs-comment >##   8:     4187.2702: 0.0588991 0.474727 0.266591 0.252396</span>
+<span class=hljs-comment >##   9:     4187.1295: 0.0574901 0.507977 0.249612 0.240702</span>
+<span class=hljs-comment >##  10:     4186.7721: 0.0564879 0.493179 0.247908 0.243303</span>
+<span class=hljs-comment >##  11:     4186.7508: 0.0564780 0.496334 0.253101 0.252115</span>
+<span class=hljs-comment >##  12:     4186.7051: 0.0569370 0.489443 0.251812 0.253377</span>
+<span class=hljs-comment >##  13:     4186.6979: 0.0575401 0.491251 0.251173 0.254219</span>
+<span class=hljs-comment >##  14:     4186.6975: 0.0569273 0.491562 0.250399 0.253936</span>
+<span class=hljs-comment >##  15:     4186.6973: 0.0568848 0.491252 0.251229 0.254118</span>
+<span class=hljs-comment >##  16:     4186.6972: 0.0569497 0.491307 0.251026 0.253907</span>
+<span class=hljs-comment >##  17:     4186.6972: 0.0570156 0.491354 0.250879 0.254061</span>
+<span class=hljs-comment >##  18:     4186.6972: 0.0570462 0.491377 0.250964 0.253975</span>
+<span class=hljs-comment >##  19:     4186.6972: 0.0570402 0.491363 0.250953 0.253978</span>
+<span class=hljs-comment >##  20:     4186.6972: 0.0570402 0.491363 0.250953 0.253978</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Final Estimate of the Negative LLH:</span>
+<span class=hljs-comment >##  LLH:  -5898.152    norm LLH:  -1.796027 </span>
+<span class=hljs-comment >##          mu       omega      alpha1      alpha2 </span>
+<span class=hljs-comment >## 0.002645480 0.001056936 0.250952557 0.253978481 </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## R-optimhess Difference Approximated Hessian Matrix:</span>
+<span class=hljs-comment >##                   mu         omega       alpha1       alpha2</span>
+<span class=hljs-comment >## mu     -2351850.0340     -94705.65    -130.9563    1516.1290</span>
+<span class=hljs-comment >## omega    -94705.6536 -877581129.05 -373655.7934 -444900.1054</span>
+<span class=hljs-comment >## alpha1     -130.9563    -373655.79   -1471.6057    -431.9747</span>
+<span class=hljs-comment >## alpha2     1516.1290    -444900.11    -431.9747   -1191.6592</span>
+<span class=hljs-comment >## attr(,&quot;time&quot;)</span>
+<span class=hljs-comment >## Time difference of 0.05965304 secs</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## --- END OF TRACE ---</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Time to Estimate Parameters:</span>
+<span class=hljs-comment >##  Time difference of 0.4027209 secs</span></code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## Warning: Using formula(x) is deprecated when x is a character vector of length &gt; 1.</span>
+<span class=hljs-comment >##   Consider formula(paste(x, collapse = &quot; &quot;)) instead.</span></code></pre>
+<pre><code class="r hljs">summary(m1)</code></pre>
+<pre><code class="julia hljs"><span class=hljs-comment >## </span>
+<span class=hljs-comment >## Title:</span>
+<span class=hljs-comment >##  GARCH Modelling </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Call:</span>
+<span class=hljs-comment >##  garchFit(formula = ~arma(0, 0) + garch(2, 0), data = dt_daily_ret$return) </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Mean and Variance Equation:</span>
+<span class=hljs-comment >##  data ~ arma(0, 0) + garch(2, 0)</span>
+<span class=hljs-comment >## &lt;environment: 0x000001b4827aa428&gt;</span>
+<span class=hljs-comment >##  [data = dt_daily_ret$return]</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Conditional Distribution:</span>
+<span class=hljs-comment >##  norm </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Coefficient(s):</span>
+<span class=hljs-comment >##        mu      omega     alpha1     alpha2  </span>
+<span class=hljs-comment >## 0.0026455  0.0010569  0.2509526  0.2539785  </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Std. Errors:</span>
+<span class=hljs-comment >##  based on Hessian </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Error Analysis:</span>
+<span class=hljs-comment >##         Estimate  Std. Error  t value Pr(&gt;|t|)    </span>
+<span class=hljs-comment >## mu     2.645e-03   6.524e-04    4.055 5.02e-05 ***</span>
+<span class=hljs-comment >## omega  1.057e-03   3.843e-05   27.502  &lt; 2e-16 ***</span>
+<span class=hljs-comment >## alpha1 2.510e-01   2.827e-02    8.878  &lt; 2e-16 ***</span>
+<span class=hljs-comment >## alpha2 2.540e-01   3.296e-02    7.705 1.31e-14 ***</span>
+<span class=hljs-comment >## ---</span>
+<span class=hljs-comment >## Signif. codes:  0 &#x27;***&#x27; 0.001 &#x27;**&#x27; 0.01 &#x27;*&#x27; 0.05 &#x27;.&#x27; 0.1 &#x27; &#x27; 1</span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Log Likelihood:</span>
+<span class=hljs-comment >##  5898.152    normalized:  1.796027 </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Description:</span>
+<span class=hljs-comment >##  Fri Jan 08 10:29:47 2021 by user: z5110862 </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Standardised Residuals Tests:</span>
+<span class=hljs-comment >##                                 Statistic p-Value     </span>
+<span class=hljs-comment >##  Jarque-Bera Test   R    Chi^2  58727.98  0           </span>
+<span class=hljs-comment >##  Shapiro-Wilk Test  R    W      0.8800886 0           </span>
+<span class=hljs-comment >##  Ljung-Box Test     R    Q(10)  26.3782   0.003263477 </span>
+<span class=hljs-comment >##  Ljung-Box Test     R    Q(15)  39.05692  0.000628423 </span>
+<span class=hljs-comment >##  Ljung-Box Test     R    Q(20)  49.41108  0.0002687736</span>
+<span class=hljs-comment >##  Ljung-Box Test     R^2  Q(10)  14.15045  0.1662389   </span>
+<span class=hljs-comment >##  Ljung-Box Test     R^2  Q(15)  18.71158  0.2271022   </span>
+<span class=hljs-comment >##  Ljung-Box Test     R^2  Q(20)  20.63017  0.4191803   </span>
+<span class=hljs-comment >##  LM Arch Test       R    TR^2   15.36755  0.2219489   </span>
+<span class=hljs-comment >## </span>
+<span class=hljs-comment >## Information Criterion Statistics:</span>
+<span class=hljs-comment >##       AIC       BIC       SIC      HQIC </span>
+<span class=hljs-comment >## -3.589618 -3.582192 -3.589621 -3.586959</span></code></pre>
+<div class=page-foot >
+  <div class=copyright >
+    &copy; Septimia Zenobia. Last modified: January 18, 2021. Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+  </div>
+</div>
+</div>
+        
+      
+    </table>
