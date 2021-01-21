@@ -2,25 +2,25 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
 <url>
-    <loc>https://tlienart.github.io/FranklinTemplates.jl/bitcoin-volatility/index.html</loc>
+    <loc>https://oizin.github.io/bitcoin-volatility/index.html</loc>
     <lastmod>2021-01-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://tlienart.github.io/FranklinTemplates.jl/404/index.html</loc>
+    <loc>https://oizin.github.io/404/index.html</loc>
     <lastmod>2021-01-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://tlienart.github.io/FranklinTemplates.jl/structural-nested-mean-models/index.html</loc>
+    <loc>https://oizin.github.io/structural-nested-mean-models/index.html</loc>
     <lastmod>2021-01-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://tlienart.github.io/FranklinTemplates.jl/index.html</loc>
+    <loc>https://oizin.github.io/index.html</loc>
     <lastmod>2021-01-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
