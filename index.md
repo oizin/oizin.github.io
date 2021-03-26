@@ -15,7 +15,7 @@ Autoregressive conditional heteroscedasticity (ARCH) models have such a long nam
 
 #### [Structural nested mean models](/structural-nested-mean-models)
 
-This is a long post trying to undertand structural nested mean models and their role in causal inference. 
+This is a long post trying to understand structural nested mean models and their role in causal inference. 
 
 ## About me
 
