@@ -1,10 +1,16 @@
 # Bitcoin price volatility with ARCH models
 
+---
+
+I wrote this post to remind myself of the basic strategies behind how (financial) time series are analysed and how volatility models work. In particular I examine the ARCH model. Don't take the attempt to forecast the distributions of Bitcoin / US dollar price movements seriously - I would bet precisely \$0 on this model. I hope to do a more detailed post on how to evaluate forecasts in the future.
+
+---
+
+
+
 ## Introduction 
 
 It's January 2021 and Bitcoin price have been breaking all time highs. In this context I wanted to explore statistical methods for estimating and forecasting volatility, in particular autoregressive conditional heteroscedasticity (ARCH) models. Volatility is variation around the mean return of a financial asset. Low volatility implies prices are bunched near the mean while high volatility implies large swings in prices. It is considered a measure of investment risk. For example, we may be convinced Bitcoin will continue to rise in value over the short term but reluctant to engage in speculation if there is significant volatility reducing our chances of being able to buy in and sell at "good" prices (even if there a upward trend). I'll add I'm not an expert on financial markets, and that models and graphs below are coded in R.
-
-
 
 
 ```r
@@ -21,7 +27,7 @@ dt_daily_close <- fread("./bitcoin-daily-close-2012-2020.csv")
 
 ## Bitcoin bull markets
 
-To say the Bitcoin (BTC) price has been going up recently was probably an understatement, the price has gone up more 100% since the beginning of 2020! Although if we compare with previous bull market in late 2017 where the price went up more than 1000% it is not a unique occurrence in Bitcoin's history. Indeed, looking at the graph of Bitcoin on a log scale below we see that the recent (relative) growth rate is comparatively low in Bitcoin's history.
+To say the Bitcoin (BTC) price (US$/BTC exchange rate) has been going up recently was probably an understatement, the price has gone up more 100% since the beginning of 2020! Although if we compare with previous bull market in late 2017 where the price went up more than 1000% it is not a unique occurrence in Bitcoin's history. Indeed, looking at the graph of Bitcoin on a log scale below we see that the recent (relative) growth rate is comparatively low in Bitcoin's history.
 
 ![**Figure 1.** Bitcoin daily closing prices (2012 to 2020)](/assets/bitcoin-volatility-20210118/unnamed-chunk-3-1.png) 
 
@@ -232,7 +238,7 @@ One use of such a model may be to forecast the one day ahead distribution of ret
 
 ## Assessing the forecasts
 
-A more thorough evaluation of the forecasts involves assessing their calibration and dispersion (I won't go into details on this aspect, see for example Gneiting and Katzfuss (2014)). From the graphs below we see that our forecasts are poorly calibrated - the forecasted probabilities of price movement are not reliable. They are likely to over estimate the probability of a large price movement (overdispersion). 
+A more thorough evaluation of the forecasts involves assessing their calibration and dispersion. I won't go into details on this aspect, see for example Gneiting and Katzfuss (2014). What we are looking for is that a graph of the forecasted cumulative probabilites resemble a uniform distribution, and that the predicted event rates vs. actual event rates are similar. From the graphs below we see that our forecasts are poorly calibrated - the forecasted probabilities of price movement are not reliable. They are likely to over estimate the probability of a large price movement (overdispersion). 
 
 ![**Figure X.** Assessment of calibration](/assets/bitcoin-volatility-20210118/unnamed-chunk-18-1.png)
 
@@ -242,7 +248,7 @@ We might wonder whether the poor performance came about due to the large drop in
 
 ![**Figure X.** Assessment of calibration (pre March 2020)](/assets/bitcoin-volatility-20210118/unnamed-chunk-19-1.png)
 
-*Figure 10. Assessment of calibration (pre March 2020)*
+*Figure 10. Assessment of calibration (pre March 2020).*
 
 ## That's all!
 

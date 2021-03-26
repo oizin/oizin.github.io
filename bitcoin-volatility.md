@@ -1,4 +1,12 @@
 # Bitcoin price volatility with ARCH models
+Oisín Fitzgerald, March 2021
+
+---
+
+I wrote this post to remind myself of the basic strategies behind how (financial) time series are analysed and how volatility models work. In particular I examine the ARCH model. Don't take the attempt to forecast the distributions of Bitcoin / US dollar price movements seriously - I would bet precisely \$0 on this model. I hope to do a more detailed post on how to evaluate forecasts in the future.
+
+
+---
 
 ## Introduction 
 
@@ -16,6 +24,7 @@ library(ggplot2)
 
 ```r
 # read in data
+# Source: https://www.kaggle.com/mczielinski/bitcoin-historical-data
 dt_daily_close <- fread("./bitcoin-daily-close-2012-2020.csv")
 ```
 

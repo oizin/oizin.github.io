@@ -1,5 +1,17 @@
 /* Default css file for jemdoc. */
 
+.im-50 {text-align: center;}
+.im-50 img {
+    padding: 0;
+    width: 50%;
+}
+
+.im-25 {text-align: center;}
+.im-25 img {
+    padding: 0;
+    width: 25%;
+}
+
 table#tlayout {
   border: none;
   border-collapse: separate;

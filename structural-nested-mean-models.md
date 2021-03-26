@@ -1,5 +1,6 @@
 
 # Structural Nested Mean Models for Causal Inference
+Oisín Fitzgerald, January 2021
 
 ## Introduction
 
