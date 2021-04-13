@@ -1,7 +1,7 @@
 
 ## Welcome
 
-On this website you'll find some posts and notes written by me, Oisín Fitzgerald. You can find the source code for the posts and website [here](https://github.com/oizin/oizin.github.io).
+On this website you'll find some posts and notes written by me, Oisín Fitzgerald. They are generally about statistics, machine learning and causal inference. You can find the source code for the posts and website [here](https://github.com/oizin/oizin.github.io).
 
 ## Posts
 
