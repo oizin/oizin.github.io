@@ -19,7 +19,7 @@ This is a long post trying to understand structural nested mean models and their
 
 ## About me
 
-I'm currently a PhD candidate at the Centre for Big Data Research in Health at UNSW Sydney. I'm interested in digital health and the role that data and analytics can play in improvement of the healthcare system and patient outcomes.
+I'm currently a PhD candidate at the Centre for Big Data Research in Health at UNSW Sydney. I'm interested in the role that data and analytics can play in improvement of the healthcare system and patient outcomes.
 
 
 @@im-25

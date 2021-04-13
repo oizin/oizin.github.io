@@ -52,15 +52,21 @@ Each of these effects may be useful for different purposes. For example, the tot
 
 ## Mediation and exchangeability
 
-One of the important considerations in any causal analysis is exchangeability/ignorability. Also referred to as unconfoundedness, we can think of exchangeability as meaning that individuals in either treatment arm are literally a-priori exchangeable or "swappable", with the conditionaly exchangeability meaning that individuals are swappable within strata of a covariates X. We want our analysis to be comparable to a RCT, you could have ended up in either treatment arm. What exchangeability achieves is a lack of dependence between the treatment assignment and the potential outcome under that treatment $Y(a) \perp A$. Otherwise you end up with flawed analysis. For example, assume that in truth exercise $A$ reduces risk of hospitalisations due to asthma $Y$, and we wish inpractise to investigate the link using survey of all asthmatics who have attended a clinic. However, only mild asthmatics do any exercise training ($A=1$) and already have fairly low risk of hospitalisations. So a naive analysis might find that exercise increases risk of hospitalisations. We have set up a scenario where our naive treatment estimator cannot equal the true treatment effect $E(Y|A=1) - E(Y|A=0) \ne E(Y(1) - Y(0))$. Clearly severity of asthma $X$ would be an important adjustment and we might be happy to consider treatment assigment random within levels of an asthma severity measure $X$ leading to conditional exchangeability $Y(a) \perp A | X = x$. 
+One of the important considerations in any causal analysis is exchangeability/ignorability. Also referred to as unconfoundedness, we can think of exchangeability as meaning that individuals in either treatment arm are literally a-priori exchangeable or "swappable", with the conditionaly exchangeability meaning that individuals are swappable within strata of a covariates X. We want our analysis to be comparable to a RCT, you could have ended up in either treatment arm. What exchangeability achieves is a lack of dependence between the treatment assignment and the potential outcome under that treatment $Y(a) \perp A$. Otherwise you end up with flawed analysis. 
 
-Now that we've recapped exchangeability in general lets consider it for mediation. In particular I'm going to talk about RCTs and so will assume the initial treatment $A$ is fully randomised and unconfounded. An issue here is rather simply that we've randomised only the treatment and so any mediation analysis can still be confounded. For example, exercise could reduce asthma hospitalisation, with the potential mechanism being a reduction in inflammation. But if some individuals in our study live in an area with a pollutant that raises lung inflammtion and increases our risk of asthma hospitalisation we have a partially confounded analysis. What will happen then is that estimates of the indirect and direct effects will be biased away from the true effect. 
+### A more detailed example (if you want)
+
+For example, assume that in truth exercise $A$ reduces risk of hospitalisations due to asthma $Y$, and we wish in practise to investigate the link using survey of all asthmatics who have attended a clinic. However, only mild asthmatics do any exercise training ($A=1$) and already have fairly low risk of hospitalisations. So a naive analysis might find that exercise increases risk of hospitalisations. We have set up a scenario where our naive treatment estimator cannot equal the true treatment effect $E(Y|A=1) - E(Y|A=0) \ne E(Y(1) - Y(0))$. Clearly severity of asthma $X$ would be an important adjustment and we might be happy to consider treatment assigment random within levels of an asthma severity measure $X$ leading to conditional exchangeability $Y(a) \perp A | X = x$. 
+
+### Confounding in RCTs
+
+Now that we've recapped exchangeability in general lets consider it for mediation. In particular I'm going to talk about RCTs and so will assume the initial treatment $A$ is fully randomised and unconfounded. An issue here is rather simply that we've randomised only the treatment and not the mediator, and so any mediation analysis can still be confounded. For example, we could randomise exercise training to assess if that reduces asthma hospitalisations, with the potential mechanism of interest being a reduction in inflammation. However, maybe our study is in a district with poor industrial pollution controls. Some individuals in our study happen to live near a factory that is unbeknownst to them leaking a pollutant that raises lung inflammtion and increasing their our risk of asthma hospitalisation. As a result we have a partially confounded analysis, there is an unrecorded factor - proximity to the factory - that we won't account for in the analysis. What will happen then is that estimates of the indirect and direct effects will be biased away from the true effect. 
 
 ![Mediation with confounding](/assets/causal-mediation-20210202/mediation3.png)
 
 ## Simulations 
 
-Let's investigate this issue around confounding and mediation analysis using some simple linear forms for our data generation process and models.
+Let's investigate this issue around confounding and mediation analysis using some simple linear forms for our data generation process and models. Feel free to skim the maths, all that matters is that the effects of interest turn out to be coefficients we can easily extract from a linear model. 
 
 ### 0. An unconfounded mediation model
 
@@ -157,7 +163,7 @@ mediation_scen1 <- function(N,alpha,beta,gamma) {
 
 ### 2. Measured confounding
 
-If we knew there was confounding of $M$ and $Y$ by $U$ and we measured $U$ we could estimate the direct and indirect effects while controlling for $U$. THis would fix our biases - see the graph!
+If we knew there was confounding of $M$ and $Y$ by $U$ and we measured $U$ we could estimate the direct and indirect effects while controlling for $U$. This would fix our biases - see the graph!
 
 
 ```r
