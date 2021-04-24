@@ -23,7 +23,7 @@ Add a comment widget, managed by utterances <https://utteranc.es>.
 function hfun_addcomments()
     html_str = """
         <script src="https://utteranc.es/client.js"
-            repo="https://github.com/oizin/oizin.github.io"
+            repo="oizin/oizin.github.io"
             issue-term="title"
             label="Comment"
             theme="github-light"
