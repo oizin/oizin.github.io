@@ -1,4 +1,6 @@
 
+@def title = "Structural Nested Mean Models"
+
 # Structural Nested Mean Models for Causal Inference
 Oisín Fitzgerald, January 2021
 

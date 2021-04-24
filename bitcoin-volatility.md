@@ -1,12 +1,11 @@
+@def title = "ARCH models"
+
 # Bitcoin price volatility with ARCH models
 Oisín Fitzgerald, March 2021
 
----
-
+@@boxed
 I wrote this post to remind myself of the basic strategies behind how (financial) time series are analysed and how volatility models work. In particular I examine the ARCH model. Don't take the attempt to forecast the distributions of Bitcoin / US dollar price movements seriously - I would bet precisely \$0 on this model. I hope to do a more detailed post on how to evaluate forecasts in the future.
-
-
----
+@@
 
 ## Introduction 
 
@@ -264,3 +263,5 @@ Thanks for reading. This was a relatively simplistic introduction to the use of 
 * Bollerslev, T. (1986). Generalized autoregressive conditional heteroskedasticity. Journal of econometrics, 31(3), 307-327.  
 * Data source: https://www.kaggle.com/mczielinski/bitcoin-historical-data   
 * fGarch R package: https://cran.r-project.org/web/packages/fGarch/fGarch.pdf  
+
+{{ addcomments }}

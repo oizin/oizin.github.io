@@ -3,10 +3,41 @@
 ================================================================== */
 
 html {
-    font-family: Helvetica, Arial, sans-serif;
+    font-family: Sans-Serif;
     font-size  : 17px;
     color: #1c1c1c;
 }
+
+.boxed {
+  background-color: #EEF3F5;
+  font-style: italic;
+  padding 10%;
+} 
+
+#sitename {
+  color: white;
+  text-decoration: none;
+}
+
+#sitename a {
+  color:white;
+  text-decoration: none;
+}
+
+#sitename a { color: inherit; }
+
+#sitename a:hover {
+  text-decoration: none;
+  border-bottom: none;
+}
+
+#sitename:hover {
+  color:white;
+  text-decoration: none;
+    border-bottom: none;
+
+}
+
 
 /* ==================================================================
     BASIC GRID FOR PROFILE PIC
@@ -44,7 +75,7 @@ html {
 
 .page-foot {
     font-size: 80%;
-    font-family: Arial, serif;
+    font-family: Sans-Serif;
     color: #a6a2a0;
     text-align: center;
     margin-top: 6em;
@@ -90,15 +121,25 @@ html {
 
 .franklin-content h1 {
     padding-bottom: 0.5em;
-    border-bottom: 3px double lightgrey;
-    margin-top: 1.5em;
-    margin-bottom: 1em; }
+    margin-top: 0.5em;
+    margin-bottom: 0.2em; }
 
 .franklin-content h2 {
     padding-bottom: 0.3em;
     border-bottom: 1px solid lightgrey;
-    margin-top: 2em;
+    margin-top: 1em;
     margin-bottom: 1em; }
+
+.franklin-content h3 {
+    border-bottom: 1px solid lightgrey;
+  
+}
+
+.franklin-content h4 {
+    margin-bottom: 0.2em;
+  }
+
+
 
 .franklin-content h1 a { color: inherit; }
 .franklin-content h1 a:hover {text-decoration: none;}
@@ -143,6 +184,7 @@ html {
 .franklin-content a {
     color: #004de6;
     text-decoration: none; }
+
 
 .franklin-content a:hover {
     text-decoration: underline; }

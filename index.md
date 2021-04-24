@@ -1,13 +1,13 @@
 
-## Welcome
+@def title = "Pattern Recognition"
 
-On this website you'll find some posts and notes written by me, Oisín Fitzgerald. They are generally about statistics, machine learning and causal inference. You can find the source code for the posts and website [here](https://github.com/oizin/oizin.github.io).
+# Posts
 
-## Posts
+Longer explorations of statistical/machine learning methods or ideas.
 
 #### [Causal mediation: an overview](/causal-mediation)
 
-A quick introduction to causal mediation analysis and the need to think carefully about potential confounding when undertaking such analyses.
+A short introduction to causal mediation analysis and the need to think carefully about potential confounding when undertaking such analyses.
 
 #### [ARCH models and Bitcoin volatility](/bitcoin-volatility)
 
@@ -17,11 +17,6 @@ Autoregressive conditional heteroscedasticity (ARCH) models have such a long nam
 
 This is a long post trying to understand structural nested mean models and their role in causal inference. 
 
-## About me
+# Notes
 
-I'm currently a PhD candidate at the Centre for Big Data Research in Health at UNSW Sydney. I'm interested in the role that data and analytics can play in improvement of the healthcare system and patient outcomes.
-
-
-@@im-25
-![](/assets/jervisbay.jpg)
-@@
+A quick look at all or part of a single paper or book chapter.

@@ -1,5 +1,15 @@
 /* Default css file for jemdoc. */
 
+header {
+  background-color: #111;
+  padding: 10px;
+  text-align: left;
+  font-size: 35px;
+  color: white;
+  height: 35px
+}
+
+
 .im-50 {text-align: center;}
 .im-50 img {
     padding: 0;
@@ -20,7 +30,7 @@ table#tlayout {
 
 body {
   background: white;
-  font-family: Georgia, serif;
+  font-family: Sans-Serif;
   padding-bottom: 8px;
   margin: 0;
 }
@@ -64,7 +74,7 @@ tt {
 
 pre, tt {
   font-size: 90%;
-  font-family: monaco, monospace;
+  font-family: Sans-Serif;
 }
 
 a, a > tt {
@@ -139,7 +149,6 @@ h1, h2, h3 {
   padding-bottom: 0.2em;
   line-height: 1.0;
   padding-top: 0.5em;
-  border-bottom: 1px solid #aaaaaa;
 }
 
 h1 {
@@ -404,7 +413,6 @@ h1, h2, h3, #layout-menu a.current:link, #layout-menu a.current:visited {
 }
 
 h1, h2, h3 {
-  border-bottom: 1px solid #c0c0c0;
 }
 
 div#footer-text {

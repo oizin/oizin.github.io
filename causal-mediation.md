@@ -1,12 +1,11 @@
+@def title = "Causal Mediation"
+
 # Causal Mediation: A Brief Overview
 Oisín Fitzgerald, March 2021
 
-
----
-
-I recently worked on the meta-analysis of a set of randomised control trials (RCT), and as part of this carried out a series of causal mediation analyses. I'd never thought about mediation in an RCT setting before. It was interesting to realise that even in a perfectly designed experiment with full randomisation of the treatment there is a need to think carefully about risk of confounding. 
-
----
+@@boxed
+  I recently worked on the meta-analysis of a set of randomised control trials (RCT), and as part of this carried out a series of causal mediation analyses. I'd never thought about mediation in an RCT setting before. It was interesting to realise that even in a perfectly designed experiment with full randomisation of the treatment there is a need to think carefully about risk of confounding.
+@@
 
 ## Introduction
 
@@ -68,7 +67,7 @@ Now that we've recapped exchangeability in general lets consider it for mediatio
 
 Let's investigate this issue around confounding and mediation analysis using some simple linear forms for our data generation process and models. Feel free to skim the maths, all that matters is that the effects of interest turn out to be coefficients we can easily extract from a linear model. 
 
-### 0. An unconfounded mediation model
+### (0) An unconfounded mediation model
 
 First lets clarify what we are attempting to estimate.
 
@@ -131,7 +130,7 @@ mediation_scen0 <- function(N,alpha,beta,gamma) {
 
 ![](/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
-### 1. A confounded mediation model
+### (1) A confounded mediation model
 
 We now make M and Y to be shared caused of another variable $U$. This results in biased estimates of the direct and indirect effect as seen in the graph below.
 
@@ -161,7 +160,7 @@ mediation_scen1 <- function(N,alpha,beta,gamma) {
 
 ![](/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
-### 2. Measured confounding
+### (2) Measured confounding
 
 If we knew there was confounding of $M$ and $Y$ by $U$ and we measured $U$ we could estimate the direct and indirect effects while controlling for $U$. This would fix our biases - see the graph!
 
