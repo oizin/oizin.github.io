@@ -360,3 +360,6 @@ We'll come back to these topics, in particular time varying treatments in subseq
 * Robins, James M, Donald Blevins, Grant Ritter, and Michael Wulfsohn. 1992. G-Estimation of the Effect of Prophylaxis Therapy for Pneumocystis Carinii Pneumonia on the Survival of Aids Patients. Epidemiology, 319–36.  
 * Robins, James M, Miguel Angel Hernan, and Babette Brumback. 2000. Marginal Structural Models and Causal Inference in Epidemiology. LWW.  
 * Vansteelandt, Stijn, Marshall Joffe, and others. 2014. Structural Nested Models and G-Estimation: The Partially Realized Promise. Statistical Science 29 (4): 707–31.  
+
+
+{{ addcomments }}

@@ -195,4 +195,6 @@ This post was a quick introduction to mediation analysis and one of the potentia
 * Pearl, J. (2014). Interpretation and identification of causal mediation. Psychological methods, 19(4), 459: https://ftp.cs.ucla.edu/pub/stat_ser/r389.pdf  
 
 
+{{ addcomments }}
+
 
