@@ -1,14 +1,31 @@
 /* Default css file for jemdoc. */
 
+
+
 header {
   background-color: #111;
   padding: 10px;
   text-align: left;
   font-size: 35px;
   color: white;
-  height: 35px
+  height: 35px;
+  width: 940px;
 }
 
+/* on wide screens, fix content width to a max value */
+@media (min-width: 940px) {
+    header {
+        width: auto;
+        margin: 0; }
+    }
+
+/* on narrow device, reduce margins */
+@media (max-width: 480px) {
+    header { 
+      font-size: 25px;
+      width: 600px;
+    }
+}
 
 .im-50 {text-align: center;}
 .im-50 img {
@@ -23,16 +40,20 @@ header {
 }
 
 table#tlayout {
-  border: none;
+  width: 100%;
+  margin:0 auto;
+  border:none;
   border-collapse: separate;
   background: white;
+  position: relative;
 }
 
 body {
+  width: 100%;
   background: white;
   font-family: Sans-Serif;
   padding-bottom: 8px;
-  margin: 0;
+  margin: auto;
 }
 
 #layout-menu {
@@ -58,6 +79,7 @@ body {
   padding-left: 1.0em;
   padding-right: 1.0em;
   border: none;
+  margin: auto;
   background: white;
   text-align: left;
   vertical-align: top;
