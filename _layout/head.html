@@ -8,18 +8,20 @@
   {{insert style.html}}
   {{isdef title}} <title>{{fill title}}</title>  {{end}}
   
-
+   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+ <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
 
 </head>
 <body>
-  <header>
-    <div style="margin-left:10px;margin-right:10px;padding:0;border:0;float:left;">    
-  <a id='sitename' href="/">Home</a>
-</div>
-<div style="margin-left:10px;margin-right:10px;padding:0;border:0;float:left;">    
-  <a id='sitename' href="/about/">About</a>
-</div>
-
+  <header id="sitename">
+    <h1><i>Pattern Recognition</i></h1>
+    <nav>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/about/">About</a></li>
+      </ul>
+    </nav>
+    
 </header>
 
 {{insert table.html}}

@@ -20,3 +20,8 @@ This is a long post trying to understand structural nested mean models and their
 # Notes
 
 A quick look at all or part of a single paper or book chapter.
+
+
+# Viewing 
+
+Due to my poor web development skills some graphs may appear small on a mobile device.

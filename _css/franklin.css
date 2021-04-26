@@ -14,6 +14,37 @@ html {
   padding 10%;
 } 
 
+
+#sitename h1 {
+  display:inline;
+  color:white;
+  background-color: #110;
+}
+
+#sitename ul {
+  padding:0px;
+}
+
+
+#sitename li {
+  display:inline;
+  color:white;
+  padding:5px;
+  background-color: #110;
+  font-size: 30px;
+}
+
+#sitename li:hover {
+  display:inline;
+  color:white;
+  background-color:  	#808080;
+}
+
+#sitename nav {
+  margin:auto;
+}
+
+
 #sitename {
   color: white;
   text-decoration: none;
