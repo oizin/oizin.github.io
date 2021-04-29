@@ -84,4 +84,6 @@ $\dot{v}_i = \frac{\partial v_i}{\partial x}$, called the "tangent". The final "
 
 Autodiff is important in machine learning and scientific computing and (forward mode) surprisingly easy to implement. I'll look at reverse mode autodiff in another post. 
 
-Thanks to Oscar Perez Concha who helped for discussions on the content of this post.  
+Thanks to Oscar Perez Concha who helped with discussions on the content of this post.  
+
+{{ addcomments }}
