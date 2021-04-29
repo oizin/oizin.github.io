@@ -25,6 +25,9 @@ A quick look at all or part of a single paper or book chapter.
 
 Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
 
+#### [Frontier of simulation-based inference](/simulation-based-inference)
+
+Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
 
 # Viewing 
 
