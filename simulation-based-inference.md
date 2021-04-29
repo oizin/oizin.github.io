@@ -37,3 +37,5 @@ There are several interesting areas coming together to produce the next generati
 I wasn't familiar with this area before reading so this was a good high level overview. I now finally understand what part of a portion of a stochastic proccesses class was I took was about :) !
 
 My current area of work is medical where there is not always a well established  (in a mathematical or computational sense) model of a disease process. As a result it is rare to see people building or incorporating models into their work, the hunt is often for risk factors - through correlations in datasets, or evaluating decisions - RCTs/causal analysis. In many ways this makes sense, often the process is too complex to meaningfully model with the available data or we lack ability to perform necessary experiments (due to time/ethical constraints). However, I wonder whether new hardware (e.g. continuous blood glucose monitoring) will change this through enabling better connection of long-term outcomes to personal physiology over the intervening time period.
+
+{{ addcomments }}
