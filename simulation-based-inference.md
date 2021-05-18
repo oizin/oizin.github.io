@@ -32,7 +32,7 @@ There are several interesting areas coming together to produce the next generati
 * (Deep learning ->) Differentiable programming: enabling joint learning of traditional neural network and other strctures through gradient based updates and assessing sensitivity to small changes.     
 * (Bayesian inference ->) Probabilistic programming: incorporate/quantify uncertainty throughout. 
 
-## After thought
+## Some thoughts
 
 I wasn't familiar with this area before reading so this was a good high level overview. I now finally understand what part of a portion of a stochastic proccesses class was I took was about :) !
 

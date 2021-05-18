@@ -1,5 +1,5 @@
 
-@def title = "Pattern Recognition"
+@def title = "[notes]"
 
 # Posts
 
@@ -28,6 +28,19 @@ Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
 #### [Frontier of simulation-based inference](/simulation-based-inference)
 
 Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
+
+#### [Linear regression from a Gaussian process point of view](/gp-linear)
+
+Notes on Bishop's Pattern Recognition and Machine Learning book.
+
+#### [Probabilistic time series forecasting with deep learning](/dl-ar)
+
+A look at two papers on autoregressive time series forecasting using deep learning.
+
+#### [Robustness and neural ODEs](/robustness-neural-odes)
+
+Reading Yan, Du, Tan & Feng's discussion of the robustness of neural ODEs.
+
 
 # Viewing 
 
