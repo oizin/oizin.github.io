@@ -5,7 +5,7 @@
 Oisín Fitzgerald, May 2021
 
 @@boxed
-A look at section 6.4 to 6.? of: 
+A look at section 6.4 of: 
  
 Bishop C.M. (2006). Pattern recognition and machine learning. Springer.
 
@@ -88,6 +88,8 @@ with $\epsilon_n \sim N(0,\beta)$ random noise that is independent between obser
 using Plots, Random, Distributions, LinearAlgebra # hide
 Random.seed!(1)
 n = 10
+x1 = range(-1, 1, length=100)
+X = [repeat([1],100) x1]
 β = 0.01
 d = MvNormal(repeat([0],n), (1/α)*X*transpose(X) + β*I)
 y = rand(d) 
@@ -97,8 +99,7 @@ savefig(p,joinpath(@OUTPUT, "fig3.svg")) # hide
 \fig{fig3}
 
 At this point in practise we could estimate the noise parameter $\beta$, but lets come back to that. For now assume we know that $\beta = 0.01$. It is worth remember there are no weights giving us the intercept, slope etc but we can 
-sample from our distribution of $y|t$ given the observed data. Because our interest is in predicting for new observations we'd like to estimate the posterior $p(t*|t,x,x*)$ for any future input $x*$. It turns out the posterior for for any $t*$ is another
-normal distribution which is coded below. 
+sample from our distribution of $y|t$ or $t*|t$ or given the observed data. Because our interest is in predicting for new observations we'd like to estimate the posterior $p(t*|t,x,x*)$ for any future input $x*$. It turns out the posterior for for any $t*$ is another normal distribution which is coded below. 
 
 ```julia:fig4
 p = scatter(x,y,legend=false,
