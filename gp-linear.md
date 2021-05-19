@@ -88,8 +88,8 @@ with $\epsilon_n \sim N(0,\beta)$ random noise that is independent between obser
 using Plots, Random, Distributions, LinearAlgebra # hide
 Random.seed!(1)
 n = 10
-x1 = range(-1, 1, length=100)
-X = [repeat([1],100) x1]
+x1 = range(-1, 1, length=n)
+X = [repeat([1],n) x1]
 β = 0.01
 d = MvNormal(repeat([0],n), (1/α)*X*transpose(X) + β*I)
 y = rand(d) 
