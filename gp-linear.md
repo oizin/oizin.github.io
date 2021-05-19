@@ -93,7 +93,7 @@ X = [repeat([1],n) x1]
 β = 0.01
 d = MvNormal(repeat([0],n), (1/α)*X*transpose(X) + β*I)
 y = rand(d) 
-p = scatter(x,y,legend=false,title="Observed data",xlabel="x",ylabel="y")
+p = scatter(x1,y,legend=false,title="Observed data",xlabel="x",ylabel="y")
 savefig(p,joinpath(@OUTPUT, "fig3.svg")) # hide
 ```
 \fig{fig3}
@@ -102,7 +102,7 @@ At this point in practise we could estimate the noise parameter $\beta$, but let
 sample from our distribution of $y|t$ or $t*|t$ or given the observed data. Because our interest is in predicting for new observations we'd like to estimate the posterior $p(t*|t,x,x*)$ for any future input $x*$. It turns out the posterior for for any $t*$ is another normal distribution which is coded below. 
 
 ```julia:fig4
-p = scatter(x,y,legend=false,
+p = scatter(x1,y,legend=false,
             title="Posterior: function space",xlabel="x",ylabel="y")
 
 # new X's over which to predict
