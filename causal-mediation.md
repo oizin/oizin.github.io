@@ -73,12 +73,12 @@ First lets clarify what we are attempting to estimate.
 
 ![Linear mediation model (structural equation model): scenario 0](/assets/causal-mediation-20210202/mediationlinear.png)
 
-Assuming no confounding in our generative model we can estimate the total, direct and indirect effects using estimators of the following quantities, for the total effect we have
+Assuming no confounding in our generative model we can estimate the total, direct and indirect effects using estimators of the following quantities, for the total effect we have  
 
 \begin{align}
 \text{TE} &= E(Y(1) - Y(0)) \\
  &= E(Y|A=1) - E(Y|A=0) \\
- &= \int_{\mathcal{M}} E(Y|M=m,A=1)p(M|A=1) - \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=0) \\ \
+ &= \int_{\mathcal{M}} E(Y|M=m,A=1)p(M|A=1) - \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=0) \\ 
  &= \gamma*E(M|A=1) + \beta - \gamma*E(M|A=0) \\
  &= \gamma*\alpha + \beta
 \end{align}

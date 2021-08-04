@@ -18,7 +18,7 @@ html {
 #sitename h1 {
   display:inline;
   color:white;
-  background-color: #110;
+  background-color: #707070;
 }
 
 #sitename ul {
@@ -30,14 +30,14 @@ html {
   display:inline;
   color:white;
   padding:5px;
-  background-color: #110;
+  background-color: #707070;
   font-size: 30px;
 }
 
 #sitename li:hover {
   display:inline;
   color:white;
-  background-color:  	#808080;
+  background-color:  	#707070;
 }
 
 #sitename nav {

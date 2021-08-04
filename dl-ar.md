@@ -14,4 +14,6 @@ Zhu, L., & Laptev, N. (2017, November). Deep and confident prediction for time s
 Salinas, D., Flunkert, V., Gasthaus, J., & Januschowski, T. (2020). DeepAR: Probabilistic forecasting with autoregressive recurrent networks. International Journal of Forecasting, 36(3), 1181-1191.
 @@
 
-coming soon
+Models related to those in the papers have been coded in this repo:
+
+[https://github.com/oizin/dl-ts](https://github.com/oizin/dl-ts)

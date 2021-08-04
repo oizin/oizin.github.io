@@ -17,30 +17,29 @@ Autoregressive conditional heteroscedasticity (ARCH) models have such a long nam
 
 This is a long post trying to understand structural nested mean models and their role in causal inference. 
 
-# Notes
+# Notes on papers
 
 A quick look at all or part of a single paper or book chapter.
-
-#### [Automatic differentiation I](/autodiff-forward)
-
-Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
-
-#### [Frontier of simulation-based inference](/simulation-based-inference)
-
-Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
-
-#### [Linear regression from a Gaussian process point of view](/gp-linear)
-
-Notes on Bishop's Pattern Recognition and Machine Learning book.
-
-#### [Probabilistic time series forecasting with deep learning](/dl-ar)
-
-A look at two papers on autoregressive time series forecasting using deep learning.
 
 #### [Robustness and neural ODEs](/robustness-neural-odes)
 
 Reading Yan, Du, Tan & Feng's discussion of the robustness of neural ODEs.
 
+#### [Probabilistic time series forecasting with deep learning](/dl-ar)
+
+A look at some papers on autoregressive time series forecasting using deep learning.
+
+#### [Linear regression from a Gaussian process point of view](/gp-linear)
+
+Notes on Bishop's Pattern Recognition and Machine Learning book.
+
+#### [Frontier of simulation-based inference](/simulation-based-inference)
+
+Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
+
+#### [Automatic differentiation I](/autodiff-forward)
+
+Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
 
 # Viewing 
 
