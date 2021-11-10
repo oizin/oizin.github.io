@@ -12,6 +12,8 @@ Bishop C.M. (2006). Pattern recognition and machine learning. Springer.
 [https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/](https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/)
 
 Basically this post goes through (Bayesian) linear regression from a Gaussian process space point of view with some example [Julia](https://julialang.org/) code to make things concrete. The observed data $\mathfrak{Y} = \{y_1,...,y_N\}$ are a finite set of observations from a linear function $f \in F$ indexed by (the input features) $\mathfrak{X} = \{x_1,...,x_N\}$, where $F$ is a space of probabilistic linear functions.
+
+Update (10/11/2021): Deleted "estimating the hyperparameters" section for now as it was too short and had no examples.
 @@
 
 ## Overview
@@ -40,7 +42,7 @@ $$w \sim N(0,\alpha^{-1}I)$$
 
 For example if there is one input we have $w = (w_0, w_1)^t$ and setting $\alpha = 1.0$ (arbitrarily) the prior looks like the graph below.
 
-```julia:fig1
+```julia:./code/gp-linear
 using Plots, Random, Distributions, LinearAlgebra
 Random.seed!(1)
 α = 1.0
@@ -59,10 +61,8 @@ $$y \sim N(0,\alpha X^t X)$$
 
 From the function space view we can randomly sample functions at finite spacings $\mathfrak{X} = \{x_1,...,x_N\}$ from the prior.
 
-```julia:fig2
-using Plots, Random, Distributions, LinearAlgebra # hide
+```julia:./code/gp-linear
 Random.seed!(1)
-α = 1.0
 x1 = range(-1, 1, length=100)
 X = [repeat([1],100) x1]
 d = MvNormal(repeat([0],100), (1/α)*X*transpose(X) + 1e-10*I)
@@ -84,9 +84,7 @@ $$t_n = y(x_n) + \epsilon_n$$
 
 with $\epsilon_n \sim N(0,\beta)$ random noise that is independent between observations and $t = \{t_1,...,t_N\}$ the observed output values for input features $x_n$. 
 
-```julia:fig3
-using Plots, Random, Distributions, LinearAlgebra # hide
-α = 1.0 # hide
+```julia:./code/gp-linear
 Random.seed!(1)
 n = 10
 x1 = range(-1, 1, length=n)
@@ -102,17 +100,9 @@ savefig(p,joinpath(@OUTPUT, "fig3.svg")) # hide
 At this point in practise we could estimate the noise parameter $\beta$, but lets come back to that. For now assume we know that $\beta = 0.01$. It is worth remember there are no weights giving us the intercept, slope etc but we can 
 sample from our distribution of $y|t$ or $t*|t$ or given the observed data. Because our interest is in predicting for new observations we'd like to estimate the posterior $p(t*|t,x,x*)$ for any future input $x*$. It turns out the posterior for for any $t*$ is another normal distribution which is coded below. 
 
-```julia:fig4
+```julia:./code/gp-linear
 p = scatter(x1,y,legend=false,
             title="Posterior: function space",xlabel="x",ylabel="y")
-α = 1.0 # hide
-Random.seed!(1) # hide
-n = 10 # hide
-x1 = range(-1, 1, length=n) # hide
-X = [repeat([1],n) x1] # hide
-β = 0.01 # hide
-d = MvNormal(repeat([0],n), (1/α)*X*transpose(X) + β*I) # hide
-y = rand(d) # hide
 
 # new X's over which to predict
 xs = range(-1, 1, length=100)
@@ -147,8 +137,3 @@ savefig(p,joinpath(@OUTPUT, "fig4.svg")) # hide
 ```
 
 \fig{fig4}
-
-
-## Estimating the hyperparameters
-
-To estimate the hyperparameters  - in this case the noise but can also be aspects of the kernel - we can use standard approaches such as maximum likelihood or Bayesian estimation.
