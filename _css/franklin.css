@@ -18,7 +18,7 @@ html {
 #sitename h1 {
   display:inline;
   color:white;
-  background-color: #707070;
+  background-color: #bbc1db;
 }
 
 #sitename ul {
@@ -28,16 +28,16 @@ html {
 
 #sitename li {
   display:inline;
-  color:white;
-  padding:5px;
-  background-color: #707070;
-  font-size: 30px;
+  color:rgb(3, 3, 3);
+  padding:2px;
+  background-color: #bbc1db;
+  font-size: 20px;
 }
 
 #sitename li:hover {
   display:inline;
-  color:white;
-  background-color:  	#707070;
+  color:rgb(96, 107, 158);
+  background-color:  	#bbc1db;
 }
 
 #sitename nav {

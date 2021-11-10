@@ -86,6 +86,7 @@ with $\epsilon_n \sim N(0,\beta)$ random noise that is independent between obser
 
 ```julia:fig3
 using Plots, Random, Distributions, LinearAlgebra # hide
+α = 1.0 # hide
 Random.seed!(1)
 n = 10
 x1 = range(-1, 1, length=n)
@@ -104,6 +105,14 @@ sample from our distribution of $y|t$ or $t*|t$ or given the observed data. Beca
 ```julia:fig4
 p = scatter(x1,y,legend=false,
             title="Posterior: function space",xlabel="x",ylabel="y")
+α = 1.0 # hide
+Random.seed!(1) # hide
+n = 10 # hide
+x1 = range(-1, 1, length=n) # hide
+X = [repeat([1],n) x1] # hide
+β = 0.01 # hide
+d = MvNormal(repeat([0],n), (1/α)*X*transpose(X) + β*I) # hide
+y = rand(d) # hide
 
 # new X's over which to predict
 xs = range(-1, 1, length=100)

@@ -40,7 +40,3 @@ Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
 #### [Automatic differentiation I](/autodiff-forward)
 
 Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
-
-# Viewing 
-
-Due to my poor web development skills some graphs may appear very small on a mobile device.

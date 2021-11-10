@@ -1,20 +1,23 @@
 /* Default css file for jemdoc. */
 
 header {
-  background-color: #707070;
-  padding: 10px;
+  background-color: #bbc1db;
+  padding: 5px;
   text-align: left;
   font-size: 35px;
   color: white;
-  height: 120px;
-  width: 940px;
+  height: 50px;
+  width: 800px;
+  line-height: 30px;
 }
 
 /* on wide screens, fix content width to a max value */
-@media (min-width: 940px) {
+@media (min-width: 600px) {
     header {
         width: auto;
-        margin: 0px; }
+        margin: 0px; 
+        margin-left: 400px;
+        margin-right: 400px;}
     }
 
 /* on narrow device, reduce margins */
