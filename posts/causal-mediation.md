@@ -165,7 +165,7 @@ mediation_scen1 <- function(N,alpha,beta,gamma) {
 }
 ```
 
-\figenv{}{assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png}{width:100%}
+\figenv{}{/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png}{width:100%}
 
 ### (2) Measured confounding
 
