@@ -1,5 +1,14 @@
 @def title = "ARCH models"
 
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;">
+<img src="!#2" style="padding:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
 # Bitcoin price volatility with ARCH models
 Oisín Fitzgerald, March 2021
 
@@ -31,9 +40,7 @@ dt_daily_close <- fread("./bitcoin-daily-close-2012-2020.csv")
 
 To say the Bitcoin (BTC) price has been going up recently was probably an understatement, the price has gone up more 100% since the beginning of 2020! Although if we compare with previous bull market in late 2017 where the price went up more than 1000% it is not a unique occurrence in Bitcoin's history. Indeed, looking at the graph of Bitcoin on a log scale below we see that the recent (relative) growth rate is comparatively low in Bitcoin's history.
 
-![**Figure 1.** Bitcoin daily closing prices (2012 to 2020)](/assets/bitcoin-volatility-20210118/unnamed-chunk-3-1.png) 
-
-*Figure 1. Bitcoin daily closing prices (2012 to 2020)*
+\figenv{Figure 1. Bitcoin daily closing prices (2012 to 2020)}{/assets/bitcoin-volatility-20210118/unnamed-chunk-3-1.png}{width:100%}
 
 ## Financial time series basics
 
@@ -56,15 +63,11 @@ dt_daily_ret[,date := dt_daily_close$date[-1]]
 
 We can see in the plot below that $Z_t$ appears to be a zero mean process. However, comparing it to a simulated white noise process we see much greater variation in the magnitude of deviations from the the mean. The Bitcoin returns also exhibit clustering in their variance over time. These are characteristics the ARCH model was designed to account for.
 
-![**Figure 2.** Bitcoin daily returns compared to white noise](/assets/bitcoin-volatility-20210118/unnamed-chunk-5-1.png)
-
-*Figure 2. Bitcoin daily returns compared to white noise*
+\figenv{Figure 2. Bitcoin daily returns compared to white noise}{/assets/bitcoin-volatility-20210118/unnamed-chunk-5-1.png}{width:100%}
 
 An alternative way to look at a times series is plots of the autocorrelation function (ACF) and partial autocorrelation function (PACF). The ACF graphs the correlation between observations at time $Z_t$ and $Z_{t-h}$ for various values of $h$. Since we average over $t$ we are assuming that the series is [stationary](https://en.wikipedia.org/wiki/Stationary_process) - intuitively that it's statistical properties don't depend on $t$.  The PACF graphs the correlation between $Z_t$ and $Z_{t-h}$ with all intermediate values $Z_{t-1},Z_{t-2},...,Z_{t-h+1}$ regressed out. Below are ACF and PACF graphs of the series ${Z_t}$ and ${Z_t^2}$. While $Z_t$ appears to have relatively weak patterns the ACF and PACF of the $Z_t^2$ process demonstrates clear dependence in the process variance. 
  
-![**Figure 3.** Autocorrelation function of Bitcoin daily returns and squared returns](/assets/bitcoin-volatility-20210118/unnamed-chunk-6-1.png)
-
-*Figure 3. Autocorrelation function of Bitcoin daily returns and squared returns*
+\figenv{Figure 3. Autocorrelation function of Bitcoin daily returns and squared returns}{/assets/bitcoin-volatility-20210118/unnamed-chunk-6-1.png}{width:100%}
 
 A formal test of independence of a time-series, the Ljung–Box test, strongly rejects independence in $Z_t^2$ with a small p-value. We also reject independence of the $Z_t$ increments but this is much weaker signal.
 
@@ -120,13 +123,9 @@ simulate_arch1 <- function(a0,a1,n=1000L) {
 }
 ```
 
-![**Figure 4.** Simulated ARCH(1) processes](/assets/bitcoin-volatility-20210118/unnamed-chunk-10-1.png)
+\figenv{Figure 4. Simulated ARCH(1) processes}{/assets/bitcoin-volatility-20210118/unnamed-chunk-10-1.png}{width:100%}
 
-*Figure 4. Simulated ARCH(1) processes*
-
-![**Figure 5.** ACF and PACF for simulated ARCH(1) processes](/assets/bitcoin-volatility-20210118/unnamed-chunk-11-1.png)
-
-*Figure 5. ACF and PACF for simulated ARCH(1) processes*
+\figenv{Figure 5. ACF and PACF for simulated ARCH(1) processes}{/assets/bitcoin-volatility-20210118/unnamed-chunk-11-1.png}{width:100%}
 
 It is worth remembering that ARCH models are for the volatility, we can also have usual trends, or additional ARIMA components. For example, let's simulate an AR(1) model with ARCH(1) volatility, $X_t = u_0 X_{t-1} + \sqrt h_t e_t$. The plots of the ACF and PACF for this series shows similar correlation patterns for both ${X_t}$ and ${X_t^2}$.
 
@@ -149,13 +148,9 @@ simulate_ar1_arch1 <- function(u0,a0,a1,n=1000L) {
 }
 ```
 
-![**Figure 5.** Simulated AR(1) + ARCH(1) processes](/assets/bitcoin-volatility-20210118/unnamed-chunk-13-1.png)
+\figenv{Figure 6. Simulated AR(1) + ARCH(1) processes}{/assets/bitcoin-volatility-20210118/unnamed-chunk-13-1.png}{width:100%}
 
-*Figure 6. Simulated AR(1) + ARCH(1) processes*
-
-![**Figure 5.** ACF and PACF for simulated AR(1) + ARCH(1) processes](/assets/bitcoin-volatility-20210118/unnamed-chunk-14-1.png)
-
-*Figure 7. ACF and PACF for simulated AR(1) + ARCH(1) processes*
+\figenv{Figure 7. ACF and PACF for simulated AR(1) + ARCH(1) processes}{/assets/bitcoin-volatility-20210118/unnamed-chunk-14-1.png}{width:100%}
 
 ## Modelling Bitcoin volatility
 
@@ -232,25 +227,17 @@ Calling `summary` on the resulting model object returns estimates of the model p
 
 One use of such a model may be to forecast the one day ahead distribution of returns. Our forecasts are of the form $Z_{t+1} \sim N(0,\hat{\alpha}_0 + \hat{\alpha}_1 Z_{t-1}^2 + \hat{\alpha}_2 Z_{t-2}^2)$. These forecasted distributions can be used to assess the probability of price movements of a particular size. Since we might believe the parameters of the model are not constant I'll use a rolling forecast window of 300+1 days. So starting at day 301 (2012-10-26) until the final day 3,285 (2020-12-31) I'll fit an ARCH(2) model to the previous 300 days and forecast forward one day. We can see in the results that there is considerable room for improvement, the model fails to capture many of the large price movements, but that it is not producing complete nonsense either. 
 
-
-
-![**Figure 8.** The red points are outside the 95% forecast intervals](/assets/bitcoin-volatility-20210118/unnamed-chunk-17-1.png)
-
-*Figure 8. The red points are outside the 95% forecast intervals*
+\figenv{Figure 8. The red points are outside the 95% forecast intervals}{/assets/bitcoin-volatility-20210118/unnamed-chunk-17-1.png}{width:100%}
 
 ## Assessing the forecasts
 
 A more thorough evaluation of the forecasts involves assessing their calibration and dispersion (I won't go into details on this aspect, see for example Gneiting and Katzfuss (2014)). From the graphs below we see that our forecasts are poorly calibrated - the forecasted probabilities of price movement are not reliable. They are likely to over estimate the probability of a large price movement (overdispersion). 
 
-![**Figure X.** Assessment of calibration](/assets/bitcoin-volatility-20210118/unnamed-chunk-18-1.png)
-
-*Figure 9. Assessment of calibration*
+\figenv{Figure 9. Assessment of calibration}{/assets/bitcoin-volatility-20210118/unnamed-chunk-18-1.png}{width:100%}
 
 We might wonder whether the poor performance came about due to the large drop in March 2020 influencing future predictions. However, this doesn't appear to be the case. The prediction strategy I used is simply not good! 
 
-![**Figure X.** Assessment of calibration (pre March 2020)](/assets/bitcoin-volatility-20210118/unnamed-chunk-19-1.png)
-
-*Figure 10. Assessment of calibration (pre March 2020)*
+\figenv{Figure 10. Assessment of calibration (pre March 2020)}{/assets/bitcoin-volatility-20210118/unnamed-chunk-19-1.png}{width:100%}
 
 ## That's all!
 

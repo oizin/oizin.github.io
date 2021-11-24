@@ -1,5 +1,14 @@
 @def title = "Causal Mediation"
 
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;">
+<img src="!#2" style="padding:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
 # Causal Mediation: A Brief Overview
 Oisín Fitzgerald, March 2021
 
@@ -11,13 +20,13 @@ Oisín Fitzgerald, March 2021
 
 As described by Judea Pearl causal mediation is an attempt to explain how nature works. It attempts to quantify the extent to which the effect of an action (the treatment) on a outcome of interest can be explained by a particular mechanism (the mediator).  Of course, the extent to which we are "explaining nature" is necessarily limited by the data available. As an example exercise may reduce an individuals risk of dementia because it reduces blood pressure. A [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) that encodes this structure is shown below. This graph says that exercise impacts risk of dementia **indirectly** through changes in blood pressure and also **directly**, possibly through some other unmeasured mechanism.
 
-![Example of mediation.](/assets/causal-mediation-20210202/mediation1.png) 
+\figenv{Example of mediation.}{/assets/causal-mediation-20210202/mediation1.png}{width:100%}
 
 There are several effects of interest in a mediation analysis, relating to which pathway (direct/indirect) and node (treatment/mediator) we wish to consider intervening on and if we want to imagine keeping some aspect of the treatment fixed at a baseline/control level. Some notation, there are two treatment levels $A \in \{0,1\}$ with an outcome $Y$, and potential outcome $Y(a)$, the outcome observed if we set $A = a$. By consistency, in our observed data $Y = Y(1)$ if $A = 1$ and similarly for $A = 0$. The mediator $M$ also has potential outcomes $M(0)$ and $M(1)$. Within mediation analysis there is a second potential outcome $Y(a,m)$ that arises if we consider setting both $A$ and $M$ to particular values. This potential outcome also allows us consider questions such as: what value would the outcome take if an individual is treated $A=1$ but the treatment-mediator pathway is "broken" $M=M(0)$ denoted as $Y(1,M(0))$. Other variables will be denoted $X$, $Z$, ... as required. I generally assume some level of familiarity with causal inference, a good introduction is [Hernan and Robin's book](https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/). 
 
 Some other examples of the type of questions for which causal mediation analysis is useful:  
 
-![Three examples of mediation.](/assets/causal-mediation-20210202/mediation2.png)
+\figenv{Three examples of mediation.}{/assets/causal-mediation-20210202/mediation2.png}{width:100%}
 
 ## Quantities of interest 
 
@@ -29,7 +38,7 @@ The total effect is the change in the outcome if we flip the treatment switch an
 
 $\text{TE} = E(Y(1) - Y(0))$
 
-![Total effect](/assets/causal-mediation-20210202/totaleffect.png)
+\figenv{Total effect}{/assets/causal-mediation-20210202/totaleffect.png}{width:100%}
 
 ### Direct effect
 
@@ -37,7 +46,7 @@ The natural direct effect is the effect of flipping the treatment switch if we i
 
 $\text{DE} = E(Y(1,M(0)) - Y(0,M(0)))$
 
-![Direct effect](/assets/causal-mediation-20210202/directeffect.png)
+\figenv{Direct effect}{/assets/causal-mediation-20210202/directeffect.png}{width:100%}
 
 ### Indirect effect
 
@@ -45,7 +54,7 @@ The natural direct effect (or average mediated effect) is the effect of flipping
 
 $\text{IDE} = E(Y(0,M(1)) - Y(0,M(0)))$
 
-![Indirect effect](/assets/causal-mediation-20210202/indirecteffect.png)
+\figenv{Indirect effect}{/assets/causal-mediation-20210202/indirecteffect.png}{width:100%}
 
 Each of these effects may be useful for different purposes. For example, the total effect may guide immediate decision making and policy - if a treatment works and is immediately needed the mechanism of action is less important. The size of the indirect effect is useful information for considering alternative (e.g. cheaper) treatments that target the mediator. The value $\text{IDE}/\text{TE}$ is considered the percentage of the total effect explained by the mediator.  
 
@@ -61,7 +70,7 @@ For example, assume that in truth exercise $A$ reduces risk of hospitalisations 
 
 Now that we've recapped exchangeability in general lets consider it for mediation. In particular I'm going to talk about RCTs and so will assume the initial treatment $A$ is fully randomised and unconfounded. An issue here is rather simply that we've randomised only the treatment and not the mediator, and so any mediation analysis can still be confounded. For example, we could randomise exercise training to assess if that reduces asthma hospitalisations, with the potential mechanism of interest being a reduction in inflammation. However, maybe our study is in a district with poor industrial pollution controls. Some individuals in our study happen to live near a factory that is unbeknownst to them leaking a pollutant that raises lung inflammtion and increasing their our risk of asthma hospitalisation. As a result we have a partially confounded analysis, there is an unrecorded factor - proximity to the factory - that we won't account for in the analysis. What will happen then is that estimates of the indirect and direct effects will be biased away from the true effect. 
 
-![Mediation with confounding](/assets/causal-mediation-20210202/mediation3.png)
+\figenv{Mediation with confounding}{/assets/causal-mediation-20210202/mediation3.png}{width:100%}
 
 ## Simulations 
 
@@ -71,7 +80,7 @@ Let's investigate this issue around confounding and mediation analysis using som
 
 First lets clarify what we are attempting to estimate.
 
-![Linear mediation model (structural equation model): scenario 0](/assets/causal-mediation-20210202/mediationlinear.png)
+\figenv{Linear mediation model (structural equation model): scenario 0}{/assets/causal-mediation-20210202/mediationlinear.png}{width:100%}
 
 Assuming no confounding in our generative model we can estimate the total, direct and indirect effects using estimators of the following quantities, for the total effect we have  
 
@@ -107,8 +116,6 @@ And the indirect effect we have
 We'll estimate these coefficients using R's `lm` function. Obviously in reality we'd need to worry about whether a linear model is the appropriate functional form for our analyses, see Pearl (2014) for details more general versions of these formulas. From the graph below we see that in the unconfounded case we have unbiased estimates of our parameters - as expected! 
 
 
-
-
 ```r
 mediation_scen0 <- function(N,alpha,beta,gamma) {
   A <- rbinom(N,1,0.5)
@@ -127,14 +134,14 @@ mediation_scen0 <- function(N,alpha,beta,gamma) {
 }
 ```
 
-
-![](/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
+\figenv{}{/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-3-1.png}{width:100%}
 
 ### (1) A confounded mediation model
 
 We now make M and Y to be shared caused of another variable $U$. This results in biased estimates of the direct and indirect effect as seen in the graph below.
 
-![Linear mediation model with confounding (structural equation model): scenario 1](/assets/causal-mediation-20210202/mediationlinearconfounded.png)
+\figenv{Linear mediation model with confounding (structural equation model): scenario 1}{/assets/causal-mediation-20210202/mediationlinearconfounded.png}{width:100%}
+
 
 In this case the our estimate of the indirect effect is biased, too high, i.e. generally $\hat{\alpha}\hat{\gamma} > \alpha\gamma$ while the direct effect is too low. If $U$ is >0 (<0) then both M and Y are more likely to take a higher (lower) value which gets absorbed into the $\hat{\alpha}\hat{\gamma}$ estimate. 
 
@@ -158,7 +165,7 @@ mediation_scen1 <- function(N,alpha,beta,gamma) {
 }
 ```
 
-![](/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+\figenv{}{assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png}{width:100%}
 
 ### (2) Measured confounding
 
@@ -184,7 +191,7 @@ mediation_scen2 <- function(N,alpha,beta,gamma) {
 }
 ```
 
-![](/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
+\figenv{}{/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-7-1.png}{width:100%}
 
 ## Conclusion 
 

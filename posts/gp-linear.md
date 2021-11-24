@@ -1,6 +1,15 @@
 @def title = "Gaussian processes and linear regression"
 @def showall = true
 
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;">
+<img src="!#2" style="padding:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
 # Gaussian processes and linear regression
 Oisín Fitzgerald, May 2021
 
@@ -11,7 +20,7 @@ Bishop C.M. (2006). Pattern recognition and machine learning. Springer.
 
 [https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/](https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/)
 
-Basically this post goes through (Bayesian) linear regression from a Gaussian process space point of view with some example [Julia](https://julialang.org/) code to make things concrete. The observed data $\mathfrak{Y} = \{y_1,...,y_N\}$ are a finite set of observations from a linear function $f \in F$ indexed by (the input features) $\mathfrak{X} = \{x_1,...,x_N\}$, where $F$ is a space of probabilistic linear functions.
+Basically this post goes through (Bayesian) linear regression from a Gaussian process space point of view with some example [Julia](https://julialang.org/) code to make things concrete.
 
 Update (10/11/2021): Deleted "estimating the hyperparameters" section for now as it was too short and had no examples.
 @@
@@ -53,7 +62,8 @@ p_w = [pdf(d, [w0,w1]) for w0 in W0, w1 in W1]
 contourf(W0, W1, p_w, color=:viridis,xlab="w0",ylab="w1",title="Prior: weight space")
 savefig(joinpath(@OUTPUT, "fig1.svg")) # hide
 ```
-\fig{fig1}
+
+\figenv{}{/assets/posts/gp-linear/code/output/fig1.svg}{width:100%}
 
 Since we treat input features (the x's) as constants this implies a prior distribution for the output 
 
@@ -72,7 +82,8 @@ for i in 1:20
 end
 savefig(p,joinpath(@OUTPUT, "fig2.svg")) # hide
 ```
-\fig{fig2}
+
+\figenv{}{/assets/posts/gp-linear/code/output/fig2.svg}{width:100%}
 
 The matrix $K = \text{cov}(y) = \alpha^{-1} X^t X$ is made up of elements $K_{nm} = k(x_n,x_m) = \frac{1}{\alpha}x_n^t x_m$ with $k(x,x')$ the kernel function. Notice that the kernel function $k(x,x')$ returns the variance for $x = x'$ and covariance between $x$ and $x'$ otherwise. Also that we are talking here about the covariance between *observations*, not features. $K$ is a $N \times N$ matrix and so can be quite large. There are many potential kernel functions other than $k = x^tx$ but that's for another day.   
 
@@ -95,7 +106,8 @@ y = rand(d)
 p = scatter(x1,y,legend=false,title="Observed data",xlabel="x",ylabel="y")
 savefig(p,joinpath(@OUTPUT, "fig3.svg")) # hide
 ```
-\fig{fig3}
+
+\figenv{}{/assets/posts/gp-linear/code/output/fig3.svg}{width:100%}
 
 At this point in practise we could estimate the noise parameter $\beta$, but lets come back to that. For now assume we know that $\beta = 0.01$. It is worth remember there are no weights giving us the intercept, slope etc but we can 
 sample from our distribution of $y|t$ or $t*|t$ or given the observed data. Because our interest is in predicting for new observations we'd like to estimate the posterior $p(t*|t,x,x*)$ for any future input $x*$. It turns out the posterior for for any $t*$ is another normal distribution which is coded below. 
@@ -135,5 +147,4 @@ for i in 1:20
 end
 savefig(p,joinpath(@OUTPUT, "fig4.svg")) # hide
 ```
-
-\fig{fig4}
+\figenv{}{/assets/posts/gp-linear/code/output/fig4.svg}{width:100%}

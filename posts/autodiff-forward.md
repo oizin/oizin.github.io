@@ -2,6 +2,15 @@
 @def title = "Forward model autodiff"
 @def showall = true
 
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;">
+<img src="!#2" style="padding:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
 # Forward mode automatic differentiation
 Oisín Fitzgerald, April 2021
 
@@ -47,7 +56,7 @@ xlabel="log10(h)",ylabel="log10(|Error|)",legend=false)
 savefig(joinpath(@OUTPUT, "finite.svg")) # hide
 ```
 
-\fig{finite}
+\figenv{}{/assets/posts/autodiff-forward/code/output/finite.svg}{width:100%}
 
 However, such small errors are actually not all that important in machine learning! The main issue with numeric
 differentiation for machine learning is that the number of required evaluations of our function $f$
@@ -74,7 +83,7 @@ expression. I'll be more clear about elementary operations soon but you can thin
 To be more concrete about autodiff, let's look at forward mode. Consider evaluating $f(x_1,x_2) = x_1 x_2 + \text{log}(x_1 ^2)$. We break this into the computational graph below and associate with each elementary operation the intermediate variable 
 $\dot{v}_i = \frac{\partial v_i}{\partial x}$, called the "tangent". The final "tangent" value $\dot{v}_5$, which has been calculated as the function evaluates at the input (3,5) is a derivative at the point (3,5). What derivative exactly depends on the initial values of $\dot{x_1}$ and $\dot{x_2}$. 
 
-![Example of forward autodiff.](/assets/autodiff-forward-20210426/example.png) 
+\figenv{}{/assets/autodiff-forward-20210426/example.png}{width:150%}
 
 ## Sketching a forward mode autodiff library
 

@@ -1,6 +1,15 @@
 
 @def title = "Structural Nested Mean Models"
 
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;">
+<img src="!#2" style="padding:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
 # Structural Nested Mean Models for Causal Inference
 Oisín Fitzgerald, January 2021
 
@@ -32,7 +41,7 @@ $$E(Y|A=1) - E(Y|A=0) \ne E(Y(1) - Y(0))$$
 
 In our example, only by accounting for $X_1$ can we get an unconfounded case where conditional exhangeability holds and the previous inequality becomes an equality. 
 
-![Illustration of confounding. The more severely ill (high X1) are more likely to get treated leading to the situation where the average outcome is worse in the treated. Notice that positivity is violated in this illustration.](/assets/snmm-20210118/confounding_v2.png)   
+\figenv{}{/assets/snmm-20210118/confounding_v2.png}{width:100%}
 
 *Figure 1. Illustration of confounding. The more severely ill (high X1) are more likely to get treated leading to the situation where the average outcome is worse in the treated. Notice that positivity is violated in this illustration.*
 
@@ -85,7 +94,7 @@ G-estimation is an approach to determining the parameters of a SNMM. As we are m
 
 One approach to explaining G-estimation is through assuming additive rank preservation with regard to the treatment effect (Hernan & Robins, 2020). Additive rank preservation is the assumption that the treatment effect is the same for everyone, that $Y(1)-Y(0) = \psi_0$. We emphasise that this is at the individual level (see figure 2). As shown later it is not a requirement for G-estimation that this assumption holds, it is expository tool.
 
-![Illustration of additive and nonadditive rank preservation](/assets/snmm-20210118/rankpreservation_v2.png)
+\figenv{}{/assets/snmm-20210118/rankpreservation_v2.png}{width:100%}
 
 *Figure 2. Illustration of additive and nonadditive rank preservation*
 
