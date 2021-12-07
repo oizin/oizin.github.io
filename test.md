@@ -2,12 +2,12 @@
 
 ```julia:./code/test1
 using MixedModels,RDatasets
-df = dataset("plm", "gasoline")
+df = dataset("plm", "Gasoline")
 x = 3
 ```
 
 ```julia:./code/test2
-println(df[1:10,:])
+println(df[1:20,:])
 ```
 
 \output{./code/test}
