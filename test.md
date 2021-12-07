@@ -3,11 +3,13 @@
 ```julia:./code/test1
 using DataFrames, RDatasets, MixedModels
 df = dataset("plm", "Gasoline")
+x = 3
 ```
 
 
 ```julia:./code/test2
 println(df[1:10,:])
+println(x)
 ```
 
 \output{./code/test2}
