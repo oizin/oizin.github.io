@@ -1,6 +1,7 @@
 # test page
 
 ```julia:test1
+using MixedModels
 x = 3
 ```
 
