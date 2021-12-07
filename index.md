@@ -1,9 +1,33 @@
-
 @def title = "[notes]"
+
+\newcommand{\figenv}[3]{
+~~~
+<figure style="text-align:center;padding:0;margin:0">
+<img src="!#2" style="padding:0;border:1px solid black;margin:0;#3" alt="#1"/>
+<figcaption>#1</figcaption>
+</figure>
+~~~
+}
+
+\figenv{}{/assets/banner.png}{width:100%}
 
 # Posts
 
-Longer explorations of statistical/machine learning methods or ideas.
+#### [Linear mixed effect models](/posts/linear-mixed-effects)
+
+An introduction to linear mixed effects models (LMMs) and their estimation. Aims to give an intuitive reason why we need LMMs followed by some theory and code that codes them (largely) from scratch.
+
+#### [Linear regression from a Gaussian process point of view](/posts/gp-linear)
+
+Gaussian processes have an aura of abstract complexity - "distributions over function space". I find that linking them to linear models helps reduce the abstractness. 
+
+#### [Frontier of simulation-based inference](/posts/simulation-based-inference)
+
+Some notes after reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
+
+#### [Automatic differentiation I](/posts/autodiff-forward)
+
+Some notes and code after reading Baydin, Pearlmutter, Radul & Siskind's excellent paper on the magic that is automatic differentiation.
 
 #### [Causal mediation: an overview](/posts/causal-mediation)
 
@@ -17,14 +41,3 @@ Autoregressive conditional heteroscedasticity (ARCH) models have such a long nam
 
 This is a long post trying to understand structural nested mean models and their role in causal inference. 
 
-#### [Linear regression from a Gaussian process point of view](/posts/gp-linear)
-
-Notes on Bishop's Pattern Recognition and Machine Learning book.
-
-#### [Frontier of simulation-based inference](/posts/simulation-based-inference)
-
-Reading Cranmer, Brehmer & Louppe's overview of simulation based inference.
-
-#### [Automatic differentiation I](/posts/autodiff-forward)
-
-Reading Baydin, Pearlmutter, Radul & Siskind's excellent paper.
