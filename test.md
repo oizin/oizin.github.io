@@ -1,26 +1,27 @@
 # test page
 
-```julia:./code/test1
+```julia:test1
 using MixedModels,RDatasets
 df = dataset("plm", "Gasoline")
 x = 3
 ```
 
-```julia:./code/test2
+```julia:test2
 println(df[1:20,:])
 ```
 
-\output{./code/test}
+\output{test2}
 
-```julia:./code/test3
+```julia:test3
+y = 5
 println(x)
 ```
 
-\output{./code/test3}
+\output{test3}
 
-```julia:./code/test4
+```julia:test4
 m1 = fit(MixedModel, @formula(LCarPCap ~ 1 + Year + LIncomeP + LRPMG + (1|Country)), df)
 println(m1)
 ```
 
-\output{./code/test4}
+\output{test4}
