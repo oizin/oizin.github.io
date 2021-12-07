@@ -45,12 +45,20 @@ content to avoid any CSS collisions with our real content. -->
 
 <!-- Content appended here -->
 <div class="franklin-content"><h1 id="test_page"><a href="#test_page" class="header-anchor">test page</a></h1>
-<pre><code class="language-julia">x &#61; 3</code></pre>
-<pre><code class="language-julia">y &#61; 5</code></pre>
-<pre><code class="language-julia">println&#40;x&#41;</code></pre>
-<pre><code class="plaintext code-output">3
+<pre><code class="language-julia">using MixedModels,RDatasets
+df &#61; dataset&#40;&quot;plm&quot;, &quot;Gasoline&quot;&#41;
+x &#61; 3</code></pre>
+<pre><code class="language-julia">println&#40;df&#91;1:20,:&#93;&#41;</code></pre>
+<pre><code class="plaintext code-output">UndefVarError: df not defined
 </code></pre>
-3
+<pre><code class="language-julia">y &#61; 5
+println&#40;x&#41;</code></pre>
+<pre><code class="plaintext code-output">UndefVarError: x not defined
+</code></pre>
+<pre><code class="language-julia">m1 &#61; fit&#40;MixedModel, @formula&#40;LCarPCap ~ 1 &#43; Year &#43; LIncomeP &#43; LRPMG &#43; &#40;1|Country&#41;&#41;, df&#41;
+println&#40;m1&#41;</code></pre>
+<pre><code class="plaintext code-output">UndefVarError: df not defined
+</code></pre>
 <div class="page-foot">
   <div class="copyright">
     &copy; Oisin Fitzgerald. Last modified: December 07, 2021. Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
