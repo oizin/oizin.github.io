@@ -1,0 +1,4 @@
+Sitemap: https://oizin.github.io/sitemap.xml
+
+User-agent: *
+Disallow:

@@ -1,0 +1,14 @@
+# How to:
+
+- knit an rmarkdown and keep intermediates
+Set the YAML to:
+output: 
+  html_document: 
+    keep_md: yes
+
+- Point to graphs
+
+
+- Add a new post
+1. Fix path to images
+2. 
