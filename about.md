@@ -13,6 +13,6 @@ On this website you'll find some posts and notes written by me, Oisín Fitzgeral
 
 # About me
 
-I'm currently a PhD candidate at the [Centre for Big Data Research in Health](https://cbdrh.med.unsw.edu.au/) at UNSW Sydney. Within my PhD I'm interested in the role that data and analytics can play in understanding physiology and improvement of patient outcomes. More generally I'm interested in the uses and limits of data driven decision making across healthcare, economics and society.
+I'm currently a PhD candidate at the [Centre for Big Data Research in Health](https://cbdrh.med.unsw.edu.au/) at UNSW Sydney. Within my PhD I'm interested in the role that data and analytics can play in understanding physiology and improvement of patient outcomes. More generally I'm interested in the uses and limits of data driven (statistical) decision making across healthcare, economics and society.
 
 \figenv{}{/assets/jervisbay.jpg}{width:30%}

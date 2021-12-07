@@ -17,7 +17,7 @@ Oisín Fitzgerald, December 2021
 @@boxed
 This is an introduction to linear mixed effect models. It is based on Simon Wood's book on generalised additive models and notes and articles by Douglas Bates, listed at the end. Code written in [Julia](https://julialang.org/).
 
-**Work in progress - comments welcome!**
+**A bit rough - comments welcome!**
 @@
 
 
@@ -38,7 +38,7 @@ Why does this correlation matter? Well, if we have $N$ units each with $n$ measu
 
 Below is an example of the number of cars per capita in certain countries over time using the **gasoline** dataset from the R package plm. Some noticeable facts about this dataset are 1) there is a clear difference in the number of cars between countries in the initial year of study (1960) 2) this initial difference is also far larger than the change within any one country over the time course of the study and 3) each country changes in a steady quite predictable fashion. The dataset contains other variables (income per capital and gas price) which may explain some of this variation in initial conditions and rate of change.
 
-```julia:./code/lmm
+```julia:./code/lmm1
 using CairoMakie, DataFrames, RDatasets, Statistics
 df = dataset("plm", "Gasoline")
 f = Figure(resolution = (800, 400))
@@ -57,7 +57,7 @@ What mixed effect models do is divide up the variation that exists in the data i
 
 Looking again at the **gasoline** dataset, we can see that the number of cars per capita is higher in wealthier countries (the between country relationship), and also that as a country increases in wealth the number of cars per capita increases (the within country relationship). Indeed the within country relationship is quite clear and strong. In many cases (e.g. certain physiological signals) this relationship is often harder to discern due to the variation within units being of comparable size to "noise" factors such as measurement error and natural variation.
 
-```julia:./code/lmm
+```julia:./code/lmm2
 gdf = groupby(df,:Country)
 mdf = combine(gdf, :LCarPCap => mean, :LIncomeP => mean)
 df = leftjoin(df,mdf,on=:Country)
@@ -108,7 +108,7 @@ where
 
 Using the **gasoline** dataset consider modelling car ownership (per capita) as a function of time (year), income (per capita) and gas price (inflation adjusted).
 
-```julia:./code/lmm
+```julia:./code/lmm3
 f = Figure(resolution = (800, 600))
 ax = Axis(f[1,1:2], xlabel = "Year", ylabel = "Cars per capita (log scale)",
     title = "Variation at baseline and over time")
@@ -215,14 +215,13 @@ See Bates et al (2015) for a detailed overview of the numerical linear algebra c
 For a more complete idea of how to code LMMs in practise see the source code for MixedModels.jl.
 The code below estimates $\beta$ and the variance components $\theta$. 
 
-```julia:./code/lmm
+```julia:./code/lmm4
 ## libraries
 # linear algebra
 using LinearAlgebra, SparseArrays
 # optimisation
 using Optim
 import Statistics
-#import NLopt
 
 """
 Calculates log likelihood for LMM. 
@@ -315,7 +314,7 @@ res = lmm_fit(X,Z,y);
 println("Variance components: ",round.(res.θ .^ 2,digits=3))
 ```
 
-\output{./code/lmm}
+\output{./code/lmm4}
 
 Clearly it is still worth using `MixedModels.jl` but the benefit of being able to code it yourself is the 
 freedom you get to make changes in the underlying algorithm and see the effects.
@@ -324,7 +323,7 @@ freedom you get to make changes in the underlying algorithm and see the effects.
 
 Estimating the car ownership model using `lmm_fit` gives the following results. 
 
-```julia:./code/lmm
+```julia:./code/lmm5
 df.Time = df.Year .- 1965
 n = length(unique(df.Country))
 N = length(unique(df.Year))
@@ -336,17 +335,17 @@ println("Variance components: ",round.(res.θ .^ 2,digits=3))
 println("Fixed effects: ",round.(res.β,digits=4))
 ```
 
-\output{./code/lmm}
+\output{./code/lmm5}
 
 Estimating the car ownership model from above using `MixedModels.jl` gives the following results. 
 
-```julia:./code/lmm
+```julia:./code/lmm6
 using MixedModels
 m1 = fit(MixedModel, @formula(LCarPCap ~ 1 + Time + LIncomeP + LRPMG + (1|Country)), df)
 println(m1)
 ```
 
-\output{./code/lmm}
+\output{./code/lmm6}
 
 The results from the two approaches are similar, the minor differences can be attributed to use of different optimisation routines. Interpreting the results it looks like income is the most important factor in predicting increased car ownership. Gas prices decreasing and temporal trends are noiser seconds. Indeed the sign for time is negative which may be a result of some collinearity due to income and time increasing together. The intercept random effect still has reasonably large variation, although it is clearly smaller than what we would expect if time was the only covariate (see the first figure).
 
