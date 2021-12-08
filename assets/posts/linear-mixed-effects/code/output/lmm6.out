@@ -1,1 +1,20 @@
-UndefVarError: df not defined
+Linear mixed model fit by maximum likelihood
+ LCarPCap ~ 1 + Time + LIncomeP + LRPMG + (1 | Country)
+   logLik   -2 logLik     AIC       AICc        BIC    
+    57.5230  -115.0460  -103.0460  -102.7952   -80.0371
+
+Variance components:
+            Column   Variance Std.Dev. 
+Country  (Intercept)  1.627124 1.275588
+Residual              0.028976 0.170223
+ Number of obs: 342; levels of grouping factors: 18
+
+  Fixed-effects parameters:
+────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)
+────────────────────────────────────────────────────
+(Intercept)   6.69453    0.727785     9.20    <1e-19
+Time         -0.0124492  0.00439073  -2.84    0.0046
+LIncomeP      2.57169    0.104949    24.50    <1e-99
+LRPMG        -0.195353   0.0807133   -2.42    0.0155
+────────────────────────────────────────────────────

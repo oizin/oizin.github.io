@@ -129,7 +129,7 @@ b &#61; sqrt&#40;θ2&#41; .* randn&#40;n&#41;
 Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
 y &#61; X * β &#43; Z * b &#43; randn&#40;N*n&#41;;
 res &#61; lmm_fit&#40;X,Z,y&#41;;
-println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [1.0, 2.66]
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [1.028, 2.602]
 </code></pre> <p>Clearly it is still worth using <code>MixedModels.jl</code> but the benefit of being able to code it yourself is the freedom you get to make changes in the underlying algorithm and see the effects.</p> <h3 id=example_revisited ><a href="#example_revisited" class=header-anchor >Example revisited </a></h3> <p>Estimating the car ownership model using <code>lmm_fit</code> gives the following results. </p> <pre><code class=language-julia >df.Time &#61; df.Year .- 1965
 n &#61; length&#40;unique&#40;df.Country&#41;&#41;
 N &#61; length&#40;unique&#40;df.Year&#41;&#41;
@@ -138,8 +138,28 @@ Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#4
 y &#61; df.LCarPCap
 res &#61; lmm_fit&#40;X,Z,y&#41;;
 println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;
-println&#40;&quot;Fixed effects: &quot;,round.&#40;res.β,digits&#61;4&#41;&#41;</code></pre> <pre><code class="plaintext code-output">UndefVarError: df not defined
+println&#40;&quot;Fixed effects: &quot;,round.&#40;res.β,digits&#61;4&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [0.031, 1.619]
+Fixed effects: [6.6648, -0.0123, 2.5672, -0.1986]
 </code></pre> <p>Estimating the car ownership model from above using <code>MixedModels.jl</code> gives the following results. </p> <pre><code class=language-julia >using MixedModels
 m1 &#61; fit&#40;MixedModel, @formula&#40;LCarPCap ~ 1 &#43; Time &#43; LIncomeP &#43; LRPMG &#43; &#40;1|Country&#41;&#41;, df&#41;
-println&#40;m1&#41;</code></pre> <pre><code class="plaintext code-output">UndefVarError: df not defined
+println&#40;m1&#41;</code></pre> <pre><code class="plaintext code-output">Linear mixed model fit by maximum likelihood
+ LCarPCap ~ 1 + Time + LIncomeP + LRPMG + (1 | Country)
+   logLik   -2 logLik     AIC       AICc        BIC    
+    57.5230  -115.0460  -103.0460  -102.7952   -80.0371
+
+Variance components:
+            Column   Variance Std.Dev. 
+Country  (Intercept)  1.627124 1.275588
+Residual              0.028976 0.170223
+ Number of obs: 342; levels of grouping factors: 18
+
+  Fixed-effects parameters:
+────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)
+────────────────────────────────────────────────────
+(Intercept)   6.69453    0.727785     9.20    <1e-19
+Time         -0.0124492  0.00439073  -2.84    0.0046
+LIncomeP      2.57169    0.104949    24.50    <1e-99
+LRPMG        -0.195353   0.0807133   -2.42    0.0155
+────────────────────────────────────────────────────
 </code></pre> <p>The results from the two approaches are similar, the minor differences can be attributed to use of different optimisation routines. Interpreting the results it looks like income is the most important factor in predicting increased car ownership. Gas prices decreasing and temporal trends are noiser seconds. Indeed the sign for time is negative which may be a result of some collinearity due to income and time increasing together. The intercept random effect still has reasonably large variation, although it is clearly smaller than what we would expect if time was the only covariate &#40;see the first figure&#41;.</p> <h2 id=conclusion ><a href="#conclusion" class=header-anchor >Conclusion</a></h2> <p>We&#39;ve covered the background of why you might use mixed effects models, along with the estimation of linear mixed effects models. Some other interesting topics worth exploring are the estimation of generalised linear mixed effects models, and a comparison with taking a Bayesian approach to model estimation. Thanks for reading&#33; :&#41;</p> <h2 id=references ><a href="#references" class=header-anchor >References </a></h2> <p>This document borrows from the following: </p> <ul> <li><p>Wood, S. N. &#40;2017&#41;. Generalized additive models: an introduction with R. CRC press. </p> <li><p>Bates, D., Mächler, M., Bolker, B., &amp; Walker, S. &#40;2014&#41;. Fitting linear mixed-effects models using lme4. arXiv preprint arXiv:1406.5823.</p> <li><p>MixedModels.jl: https://juliastats.org/MixedModels.jl/dev/</p> </ul> <script src="https://utteranc.es/client.js" repo="oizin/oizin.github.io" issue-term=title  label=Comment  theme=github-light  crossorigin=anonymous  async> </script> <div class=page-foot > <div class=copyright > &copy; Oisin Fitzgerald. Last modified: December 08, 2021. Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>. </div> </div> </div> </div> </div> <script src="/libs/katex/katex.min.js"></script> <script src="/libs/katex/auto-render.min.js"></script> <script>renderMathInElement(document.body)</script> <script src="/libs/highlight/highlight.pack.js"></script> <script>hljs.initHighlightingOnLoad();hljs.configure({tabReplace: ' '});</script> <label for=sidebar-checkbox  class=sidebar-toggle ></label>
