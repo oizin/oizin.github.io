@@ -1,0 +1,145 @@
+<!doctype html> <html lang=en > <meta charset=UTF-8 > <meta name=viewport  content="width=device-width, initial-scale=1"> <link rel=stylesheet  href="/libs/katex/katex.min.css"> <link rel=stylesheet  href="/libs/highlight/github.min.css"> <link rel=stylesheet  href="/css/franklin.css"> <link rel=stylesheet  href="/css/poole_lanyon.css"> <link rel=stylesheet  href="/css/adjust.css"> <link rel=icon  href="/assets/logo.jpg"> <title>LMMs</title> <input type=checkbox  class=sidebar-checkbox  id=sidebar-checkbox > <div class=sidebar  id=sidebar > <div class=sidebar-item > <p>A theme adapted from <a href="http://lanyon.getpoole.com/" target=_blank >Lanyon</a>.</p> </div> <nav class=sidebar-nav > <a class="sidebar-nav-item " href="/">Home</a> <a class="sidebar-nav-item " href="/about">About</a> <a class="sidebar-nav-item " href="/contact">Contact</a> </nav> <div class=sidebar-item > <p>&copy; Oisin Fitzgerald.</p> </div> </div> <!-- Wrap is the content to shift when toggling the sidebar. We wrap the content to avoid any CSS collisions with our real content. --> <div class=wrap > <div class=masthead > <div class=container > <h3 class=masthead-title > <a href="/" title=Home >A data science blog</a> </h3> </div> </div> <div class="container content"> <div class=franklin-content ><h1 id=linear_mixed_effect_models ><a href="#linear_mixed_effect_models" class=header-anchor >Linear mixed effect models</a></h1> <p>Oisín Fitzgerald, December 2021</p> <div class=franklin-toc ><ol><li><a href="#introduction">Introduction </a><ol><li><a href="#mixed_effect_models">Mixed effect models</a><li><a href="#linear_mixed_effect_models__2">Linear mixed effect models</a><li><a href="#motivating_example">Motivating example </a></ol><li><a href="#estimation">Estimation </a><ol><li><a href="#theory">Theory</a><li><a href="#algorithm">Algorithm </a><li><a href="#julia_implementation">Julia implementation</a><li><a href="#example_revisited">Example revisited </a></ol><li><a href="#conclusion">Conclusion</a><li><a href="#references">References </a></ol></div> <div class=boxed ><p>This is an introduction to linear mixed effect models. It is based on Simon Wood&#39;s book on generalised additive models and notes and articles by Douglas Bates, listed at the end. Code written in <a href="https://julialang.org/">Julia</a>.</p> <p><strong>A bit rough - comments welcome&#33;</strong></p></div> <h2 id=introduction ><a href="#introduction" class=header-anchor >Introduction </a></h2> <h3 id=mixed_effect_models ><a href="#mixed_effect_models" class=header-anchor >Mixed effect models</a></h3> <p>Multilevel or mixed effect models are useful whenever our data contains repeated samples from the &quot;statistical units&quot; that make up our data. There is no fixed definition of a unit - what matters is that we consider it likely that the data within each unit is correlated. For example:</p> <ul> <li><p>Repeated blood pressure measurements from a group of individuals. Each individual&#39;s blood pressure is likely to be highly correlated over time. </p> <li><p>Assessment of student performance over several schools. Since each school has it&#39;s own set of teachers, policies, and enrolment area, student performance within a school may be correlated.</p> </ul> <figure style="text-align:center;"> <img src="/assets/lmm-20210629/sampling.png" style="padding:0; width:100%" alt=" "/> <figcaption> </figcaption> </figure> <p>Why does this correlation matter? Well, if we have \(N\) units each with \(n\) measurements while our data contains \(N \times n\) observations we might actually have much closer to \(N\) pieces of <em>independent</em> information. This depends on the strength of the &#40;positive&#41; correlation within a unit. At the extreme, if we had a sample of people with extremely stable blood pressures, and we observe \(\text{person}\_1 = (121/80, 120/80,...)\), \(\text{person}\_2 = (126/78, 126/78,...)\) and so on then clearly you really only have \(~N\) pieces of independent information. Essentially all the information &#40;variation&#41; in the data is in the differences <em>between</em> units, rather than temporal changes <em>within</em> units &#40;since these are small/nonexistent&#41;. </p> <p>Below is an example of the number of cars per capita in certain countries over time using the <strong>gasoline</strong> dataset from the R package plm. Some noticeable facts about this dataset are 1&#41; there is a clear difference in the number of cars between countries in the initial year of study &#40;1960&#41; 2&#41; this initial difference is also far larger than the change within any one country over the time course of the study and 3&#41; each country changes in a steady quite predictable fashion. The dataset contains other variables &#40;income per capital and gas price&#41; which may explain some of this variation in initial conditions and rate of change.</p> <pre><code class=language-julia >using CairoMakie, DataFrames, RDatasets, Statistics
+df &#61; dataset&#40;&quot;plm&quot;, &quot;Gasoline&quot;&#41;
+f &#61; Figure&#40;resolution &#61; &#40;800, 400&#41;&#41;
+ax &#61; Axis&#40;f&#91;1,1&#93;, xlabel &#61; &quot;Year&quot;, ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;,
+    title &#61; &quot;Variation at baseline and over time&quot;&#41;
+for country in unique&#40;df.Country&#41;
+    msk &#61; df.Country .&#61;&#61; country
+    lines&#33;&#40;ax,df.Year&#91;msk&#93;,df.LCarPCap&#91;msk&#93;,color &#61; :lightblue&#41;
+end 
+f</code></pre> <figure style="text-align:center;"> <img src="/assets/posts/linear-mixed-effects/code/output/fig1.svg" style="padding:0; width:100%" alt=" Cars per capital for 18 countries (1960-1980)"/> <figcaption> Cars per capital for 18 countries (1960-1980)</figcaption> </figure> <p>What mixed effect models do is divide up the variation that exists in the data into several &quot;buckets&quot;. At the highest level there is explained and unexplained variation. Explained variation is variation that is accounted for by your predictor features &#40;covariates&#41;. These terms are often called fixed effects. For example, differences in blood pressure may be accounted for by differences in amount of salt intake or exercise quantity. Note that this can be both between <strong>and</strong> within units, two people may have different levels of average exercise quantity and one person may change their exercise quantity over time. Longitudinal data structures are very powerful in allowing us to examine difference in the effect of a variable both between and within units. For instance if we found that average exercise amount predicted a lowering in blood pressure but an individual increasing their exercise amount did not we might wonder whether 1&#41; exercise was a proxy for something else or 2&#41; does the change take a long time.</p> <p>Looking again at the <strong>gasoline</strong> dataset, we can see that the number of cars per capita is higher in wealthier countries &#40;the between country relationship&#41;, and also that as a country increases in wealth the number of cars per capita increases &#40;the within country relationship&#41;. Indeed the within country relationship is quite clear and strong. In many cases &#40;e.g. certain physiological signals&#41; this relationship is often harder to discern due to the variation within units being of comparable size to &quot;noise&quot; factors such as measurement error and natural variation.</p> <pre><code class=language-julia >gdf &#61; groupby&#40;df,:Country&#41;
+mdf &#61; combine&#40;gdf, :LCarPCap &#61;&gt; mean, :LIncomeP &#61;&gt; mean&#41;
+df &#61; leftjoin&#40;df,mdf,on&#61;:Country&#41;
+df.LIncomeP_change &#61; df.LIncomeP - df.LIncomeP_mean
+df.LCarPCap_change &#61; df.LCarPCap - df.LCarPCap_mean
+f &#61; Figure&#40;resolution &#61; &#40;800, 400&#41;&#41;
+ax1 &#61; scatter&#40;f&#91;1, 1&#93;,mdf.LCarPCap_mean,mdf.LIncomeP_mean&#41;
+ax1.axis.xlabel &#61; &quot;Mean cars per capita &#40;log scale&#41;&quot;
+ax1.axis.ylabel &#61; &quot;Mean income per capita &#40;log scale&#41;&quot;
+ax1.axis.title &#61; &quot;Variation between&quot;
+ax2 &#61; scatter&#40;f&#91;1, 2&#93;,df.LCarPCap_change,df.LIncomeP_change&#41;
+ax2.axis.xlabel &#61; &quot;Change in cars per capita &#40;log scale&#41;&quot; 
+ax2.axis.ylabel &#61; &quot;Change in income per capita &#40;log scale&#41;&quot;
+ax2.axis.title &#61; &quot;Variation within&quot;
+f</code></pre> <figure style="text-align:center;"> <img src="/assets/posts/linear-mixed-effects/code/output/fig2.svg" style="padding:0; width:100%" alt=" Cars per capital and income per capita for 18 countries (1960-1980)"/> <figcaption> Cars per capital and income per capita for 18 countries (1960-1980)</figcaption> </figure> <p>Unexplained variation is any variation that cannot be explained by values of &#40;or variation in&#41; the covariates. It is here that we really see the usefulness of mixed effect models. This unexplained variation is decomposed into the unexplained variation between units and within units. The between unit variation &#40;the random effects&#41; are the selling point of mixed effect models. Rather than associate with each term in our model &#40;e.g. the intercept&#41; a single fixed effect we might associate a distribution of effects. This distribution might have small or large degree of variation depending on the extent of the relevant unexplained variation that exists between our units. A notable fact is that we can have between unit variation in any term within our model, for instance the units might differ in their baseline values, suggesting random intercepts. They might also differ in the effect of a particular variable &#40;e.g. time, effect of a drug&#41; giving a random slope. A cartoon version of a random intercept and random slope situation is shown below.</p> <figure style="text-align:center;"> <img src="/assets/lmm-20210629/randomeffects.png" style="padding:0; width:100%" alt=" "/> <figcaption> </figcaption> </figure> <p>A summary of the decomposition of variance view:</p> <figure style="text-align:center;"> <img src="/assets/lmm-20210629/variance.png" style="padding:0; width:100%" alt=" "/> <figcaption> </figcaption> </figure> <p>The descriptions above suggests you might only have one &quot;level&quot; of units. However, multilevel models can account for many levels of hierarchical clustering. For example, measurements within patients within medical practises. </p> <h3 id=linear_mixed_effect_models__2 ><a href="#linear_mixed_effect_models__2" class=header-anchor >Linear mixed effect models</a></h3> <p>The main practical issue with mixed effect models is while we may be able to write down a model that accounts for the variation we believe exists in the data &#40;e.g. following some exploratory data analysis&#41; fitting it turns out to be much harder than standard linear models. The remainder of this post demonstrates the estimation process for linear mixed effects models. With the notation \(x\) / \(X\) refering to a vector / matrix, and \(x_i\) / \(X_{ij}\) the element of a matrix / vector, a linear mixed effects model &#40;LMM&#41; can be written as</p> \[y = X\beta + Z b + \epsilon, b \sim N(0,\Lambda_{\theta}), \epsilon \sim N(0,\Sigma_{\theta})\] <p>where </p> <ul> <li><p>\(\beta \in \mathcal{R}^p\) are the fixed effects, analogous to the coefficients in a standard linear model.</p> <li><p>\(X \in \mathcal{R}^{Nn \times p}\) is the model matrix for the fixed effects containing the covariates / features.</p> <li><p>The random vector \(b\) contains the random effects, with zero expected value and covariance matrix \(\Lambda_{\theta}\) </p> <li><p>\(Z \in \mathcal{R}^{Nn \times n}\) is the model matrix for the random effects</p> <li><p>\(\Sigma_{\theta}\) is the residual covariance matrix. It is often assumed that \(\Sigma_{\theta} = \sigma^2 I\)</p> <li><p>\(\theta\) is the variance-covariance components, a vector of the random effect and residual variance parameters. </p> </ul> <figure style="text-align:center;"> <img src="/assets/lmm-20210629/distributions.png" style="padding:0; width:100%" alt=" "/> <figcaption> </figcaption> </figure> <h3 id=motivating_example ><a href="#motivating_example" class=header-anchor >Motivating example </a></h3> <p>Using the <strong>gasoline</strong> dataset consider modelling car ownership &#40;per capita&#41; as a function of time &#40;year&#41;, income &#40;per capita&#41; and gas price &#40;inflation adjusted&#41;.</p> <pre><code class=language-julia >f &#61; Figure&#40;resolution &#61; &#40;800, 600&#41;&#41;
+ax &#61; Axis&#40;f&#91;1,1:2&#93;, xlabel &#61; &quot;Year&quot;, ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;,
+    title &#61; &quot;Variation at baseline and over time&quot;&#41;
+for country in unique&#40;df.Country&#41;
+    msk &#61; df.Country .&#61;&#61; country
+    lines&#33;&#40;ax,df.Year&#91;msk&#93;,df.LCarPCap&#91;msk&#93;,color &#61; :lightblue&#41;
+end 
+ax1 &#61; scatter&#40;f&#91;2, 1&#93;,df.LIncomeP,df.LCarPCap&#41;
+ax1.axis.ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;
+ax1.axis.xlabel &#61; &quot;Income per capita &#40;log scale&#41;&quot;
+ax2 &#61; scatter&#40;f&#91;2, 2&#93;,df.LRPMG,df.LCarPCap&#41;
+ax2.axis.ylabel &#61; &quot;Gasoline price &#40;log scale&#41;&quot;
+ax2.axis.xlabel &#61; &quot;Income per capita &#40;log scale&#41;&quot;
+f</code></pre> <figure style="text-align:center;"> <img src="/assets/posts/linear-mixed-effects/code/output/fig3.svg" style="padding:0; width:100%" alt=" Cars per capital compared to several factors for 18 countries (1960-1980)"/> <figcaption> Cars per capital compared to several factors for 18 countries (1960-1980)</figcaption> </figure> <p>As mentioned above a commonly used form of the LMM is the random intercept model. In this situation for a single level &#40;country over time&#41; the resulting model for country \(i\) at time \(j\) is</p> \[y_{ij} = \beta_0 + \beta_1 \text{year}_{ij} + \beta_2 \text{income}_{ij} + \beta_3 \text{gas}_{ij} + b_i + \epsilon_{ij}, b_i \sim N(0,\sigma_b^2), \epsilon_{ij} \sim N(0,\sigma_e^2)\] <p>I won&#39;t go into it&#39;s construction but it is worth thinking about what \(Z\) would look like in this case &#40;if you run the code below you can print out \(Z\)&#41;, and how it would change it we added a time random effect. Doing this will give you a sense of how the size of \(Z\) can grow quite quickly while being a largely sparse matrix &#40;filled with zeros&#41;.</p> <h2 id=estimation ><a href="#estimation" class=header-anchor >Estimation </a></h2> <p>As mentioned LMMs are tricky to estimate, largely due to the presence of the unobserved random effects and additional need to decompose the outcome variance into several variance-covariance parameters. It is worth understanding the estimation process at least superficially as it can aid in debugging &#40;commonly &quot;why is my model taking so long to estimate&#33;?&quot;&#41; and understanding warning messages when using well tested packages written by others.</p> <h3 id=theory ><a href="#theory" class=header-anchor >Theory</a></h3> <p>Feel free to skim this section. A common approach to estimation of LMMs is maximum likelihood estimation &#40;MLE&#41; or restricted MLE &#40;REML&#41; - but I&#39;ll just cover MLE here. As noted in Wood &#40;2017&#41; estimation of \(\beta\) and \(\theta\) could be based on the <em>marginal distribution</em> \(p(y)\) of the outcome </p> \[y \sim N(X\beta,Z^t\Lambda_{\theta}Z + \Sigma_{\theta})\] <p>however this would involve the inversion of a \(Nn \times Nn\) matrix \(Z^t\Lambda_{\theta}Z + \Sigma_{\theta}\). As a result estimation is generally based on the the expression </p> \[p(y) = \int p(y,b) db = \int p(y|b)p(b) db\] <p>It is worth listing out some the log pdf of the distributions that are going to come up in the derivation of a the final expression. The log transform is taken to remove the exponents and convert multiplication into addition. Here and below \(c_x\) denotes a normalising constant for the distribution of \(x\).</p> <ul> <li><p>\(\text{log}p(y,b) = \text{log}p(y|b) + \text{log}p(b)\)</p> <li><p>\(\text{log}p(y|b) = c_{y|b} + \text{log}|\Sigma_{\theta}| - (y - X\beta - Z b)^t \Sigma_{\theta}^{-1} (y - X\beta - Z b)\)</p> <li><p>\(\text{log}p(b) = c_{b} + \text{log}|\Lambda_{\theta}| - b^t \Lambda_{\theta}^{-1} b\)</p> </ul> <p>Now we are ready to derive the estimation equations. Let \(\hat{b}\) be the MLE of \(p(y,b)\). Then utilising a Taylor expansion of \(p(y,b)\) about \(\hat{b}\) on the second line below we have</p> \[\begin{aligned} p(y) &= \int f(y,b) db = \int \text{exp}\{\text{log} p(y,b)\}db \\ &= \int \text{exp}\{\text{log} p(y,\hat{b}) + (b-\hat{b})^t \frac{\partial^2 \text{log} p(y,\hat{b})}{\partial b \partial b^t} (b-\hat{b})\}db \\ &= p(y,\hat{b}) \int \text{exp}\{-(b-\hat{b})^t (Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})(b-\hat{b})/2\}db \\ \end{aligned}\] <p>The term inside the integral can be recognised is an un-normalised Gaussian pdf with covariance \((Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}\). The normalisation constant for this pdf would be \(\sqrt{|(Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}| (2\pi)^{n}}\) and so, using the fact that \(|A^{-1}| = |A|^{-1}\) the result of the integral is</p> \[\begin{aligned} p(y) &= p(y|\hat{b})p(\hat{b}) |(Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}|^{-1/2} c_y \\ \end{aligned}\] <p>In practise we will work with the <em>deviance</em> &#40;minus two times the log-likelihood&#41;, inputting our expressions for \(\text{log} p(y|b)\) and \(\text{log} p(b)\) from above gives the quantity to be minimised as</p> \[ d(\beta,\theta) = -2l(\beta,\theta) = (y - X\beta - Zb)^t \Sigma_{\theta}^{-1} (y - X\beta - Zb) + b^t \Lambda_{\theta}^{-1} b + \text{log}|Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1}| + c_{y|b} + c_{b} + c_y \\ \] <p>Computation can be based on the observation that for a fixed \(\theta\) we can get estimates of \(\beta\) and \(b\) using the first two terms</p> \[ d_1(\beta,\theta) = (y - X\beta - Zb)^t \Sigma_{\theta}^{-1} (y - X\beta - Zb) + b^t \Lambda_{\theta}^{-1} b \] <p>Notice that the random effects &#40;e.g. the individual intercept or feature effect&#41; are shrinkage estimates of what we would get if we let every unit have it&#39;s own intercept or feature effect, hence the term penalised least squares. </p> <p>Then estimates of \(\theta\) can be based on the profile likelihood &#40;deviance&#41; \(d_p(\theta) = d(\hat{\beta},\theta)\). </p> <p>Some other observations: </p> <ul> <li><p>Several of the terms can be interpreted as a complexity penalties on the random effects or variance-covariance parameters.</p> <li><p>A nicer approach is to let \(b = \Gamma_{\theta} u\) where \(u\) is a spherical normal variable &#40;uncorrelated equal variance&#41; and \(\Lambda_{\theta} = \Gamma_{\theta}^t\Gamma_{\theta}\), reducing the dimension of \(\theta\) by one &#40;Bates et al, 2014&#41;.</p> </ul> <h3 id=algorithm ><a href="#algorithm" class=header-anchor >Algorithm </a></h3> <p>How does estimation go in practise? Often a gradient free optimisation algorithm &#40;Nelder-Mead or BOBYQA&#41; is used for \(d_p\).</p> <ol> <li><p>Inputs \(X\), \(Z\), \(y\), optimisation tolerance&#40;s&#41; \(\tau\)</p> <li><p>Initialise \(B^{(0)}\) &#61; &#91;\(\beta^{(0)}\),\(b^{(0)}\)&#93; &#61; \(0\), \(\theta^{(0)} = \bold{1}\), </p> <li><p>While \(\tau\) not met:</p> <ol> <li><p>\(B^{(k)}\): argmin \(d_1(\beta,\theta)\)</p> <li><p>\(\theta^{(k)}\): argmin \(d_p(\theta)\) </p> </ol> </ol> <p>This is high level &#40;but reasonable for understanding&#41; view of how software packages like lme4 or MixedModel perform estimation for LMMs. See Bates et al &#40;2015&#41; for a detailed overview of the numerical linear algebra considerations in the implementations. </p> <figure style="text-align:center;"> <img src="/assets/lmm-20210629/optimisation.png" style="padding:0; width:100%" alt=" "/> <figcaption> </figcaption> </figure> <h3 id=julia_implementation ><a href="#julia_implementation" class=header-anchor >Julia implementation</a></h3> <p>For a more complete idea of how to code LMMs in practise see the source code for MixedModels.jl. The code below estimates \(\beta\) and the variance components \(\theta\). </p> <pre><code class=language-julia >## libraries
+# linear algebra
+using LinearAlgebra, SparseArrays
+# optimisation
+using Optim
+import Statistics
+
+&quot;&quot;&quot;
+Calculates log likelihood for LMM. 
+Internally calculates fixed and random effects given estimates of the variance-covariance components, 
+with modification of first three arguments βb, LL, rr. 
+
+Designed for &#96;lmm_fit&#96;.
+
+Args
+    βb  : vector of estimates of fixed and random effects
+    D   : fixed and random effect design matrices
+    DtD : D&#39;D
+    Dty : D&#39;y
+    y   : outcome vector
+    logθ: log of variance-covariance components
+    dim : tuple of dimensions
+
+&quot;&quot;&quot;
+function loglik&#33;&#40;βb,D,DtD,Dty,y,logθ,dim&#41;
+    σ,σ_b &#61; exp.&#40;logθ&#41;
+
+    # dimensions
+    Nn,n,p &#61; dim
+    N &#61; Nn/n
+
+    # estimation of \beta and b given theta
+    diagf &#61; diagm&#40;&#91;repeat&#40;&#91;0.0&#93;,p&#41;;repeat&#40;&#91;1/σ_b^2&#93;,n&#41;&#93;&#41;
+    LL &#61; DtD ./ σ^2 &#43; diagf
+    βb&#91;:&#93; &#61; LL \ &#40;Dty ./ σ^2&#41;
+
+    # -2 log likelihood &#40;profile likelihood&#41;
+    logdetθ &#61; logdet&#40;DtD&#91;&#40;p&#43;1&#41;:end,&#40;p&#43;1&#41;:end&#93; ./ σ^2 &#43; diagf&#91;&#40;p&#43;1&#41;:end,&#40;p&#43;1&#41;:end&#93;&#41;
+    nll &#61; &#40;1/σ^2&#41;*sum&#40;&#40;y - D*βb&#41;.^2&#41; &#43; &#40;1/σ_b^2&#41;*sum&#40;βb&#91;&#40;p&#43;1&#41;:end&#93;.^2&#41; &#43; 2*logdetθ  &#43; n*log&#40;σ_b^2&#41; &#43; Nn*log&#40;σ^2&#41; &#43; n*log&#40;2*π&#41;
+    nll ./ 2
+end
+
+&quot;&quot;&quot;
+Estimate a LMM
+
+Args
+    X : Fixed effect design matrix
+    Z : Random effect design matrix
+    y : outcome
+&quot;&quot;&quot;
+function lmm_fit&#40;X,Z,y&#41;
+
+    # dimensions / data
+    Nn &#61; length&#40;y&#41;
+    n &#61; size&#40;Z&#41;&#91;2&#93;
+    p &#61; size&#40;X&#41;&#91;2&#93;
+    dim &#61; &#40;Nn,n,p&#41;
+    D &#61; &#91;X Z&#93;
+    DtD &#61; D&#39;D
+    Dty &#61; D&#39;y
+
+    # optimisation setup
+    βb &#61; zeros&#40;n&#43;p&#41;
+    θ0 &#61; ones&#40;2&#41;
+
+    # optimise
+    opt &#61; optimize&#40;var -&gt; loglik&#33;&#40;βb,D,DtD,Dty,y,var,dim&#41;, log.&#40;θ0&#41;, NelderMead&#40;&#41;&#41;
+    θ &#61; exp.&#40;Optim.minimizer&#40;opt&#41;&#41;
+
+    # output
+    out &#61; LMM&#40;βb&#91;1:p&#93;,θ,βb&#91;&#40;p&#43;1&#41;:end&#93;,opt&#41;
+    out
+end
+
+
+&quot;&quot;&quot;
+A struct to store the results of our LMM estimation
+&quot;&quot;&quot;
+struct LMM
+    β
+    θ
+    b
+    opt
+end
+
+# A small test - the output should be approx &#91;1.0,3.0&#93;
+N, n, p &#61; 30, 100, 10
+ids &#61; repeat&#40;1:n,inner&#61;N&#41;
+X &#61; &#91;repeat&#40;&#91;1.0&#93;,N*n&#41; randn&#40;N*n,p&#41;&#93;
+β &#61; randn&#40;p&#43;1&#41;
+θ2 &#61; 3.0
+b &#61; sqrt&#40;θ2&#41; .* randn&#40;n&#41;
+Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
+y &#61; X * β &#43; Z * b &#43; randn&#40;N*n&#41;;
+res &#61; lmm_fit&#40;X,Z,y&#41;;
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [1.069, 2.958]
+</code></pre> <p>Clearly it is still worth using <code>MixedModels.jl</code> but the benefit of being able to code it yourself is the freedom you get to make changes in the underlying algorithm and see the effects.</p> <h3 id=example_revisited ><a href="#example_revisited" class=header-anchor >Example revisited </a></h3> <p>Estimating the car ownership model using <code>lmm_fit</code> gives the following results. </p> <pre><code class=language-julia >df.Time &#61; df.Year .- 1965
+n &#61; length&#40;unique&#40;df.Country&#41;&#41;
+N &#61; length&#40;unique&#40;df.Year&#41;&#41;
+X &#61; &#91;repeat&#40;&#91;1.0&#93;,size&#40;df&#41;&#91;1&#93;&#41; df.Time df.LIncomeP df.LRPMG&#93;
+Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
+y &#61; df.LCarPCap
+res &#61; lmm_fit&#40;X,Z,y&#41;;
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;
+println&#40;&quot;Fixed effects: &quot;,round.&#40;res.β,digits&#61;4&#41;&#41;</code></pre> <pre><code class="plaintext code-output">UndefVarError: df not defined
+</code></pre> <p>Estimating the car ownership model from above using <code>MixedModels.jl</code> gives the following results. </p> <pre><code class=language-julia >using MixedModels
+m1 &#61; fit&#40;MixedModel, @formula&#40;LCarPCap ~ 1 &#43; Time &#43; LIncomeP &#43; LRPMG &#43; &#40;1|Country&#41;&#41;, df&#41;
+println&#40;m1&#41;</code></pre> <pre><code class="plaintext code-output">UndefVarError: df not defined
+</code></pre> <p>The results from the two approaches are similar, the minor differences can be attributed to use of different optimisation routines. Interpreting the results it looks like income is the most important factor in predicting increased car ownership. Gas prices decreasing and temporal trends are noiser seconds. Indeed the sign for time is negative which may be a result of some collinearity due to income and time increasing together. The intercept random effect still has reasonably large variation, although it is clearly smaller than what we would expect if time was the only covariate &#40;see the first figure&#41;.</p> <h2 id=conclusion ><a href="#conclusion" class=header-anchor >Conclusion</a></h2> <p>We&#39;ve covered the background of why you might use mixed effects models, along with the estimation of linear mixed effects models. Some other interesting topics worth exploring are the estimation of generalised linear mixed effects models, and a comparison with taking a Bayesian approach to model estimation. Thanks for reading&#33; :&#41;</p> <h2 id=references ><a href="#references" class=header-anchor >References </a></h2> <p>This document borrows from the following: </p> <ul> <li><p>Wood, S. N. &#40;2017&#41;. Generalized additive models: an introduction with R. CRC press. </p> <li><p>Bates, D., Mächler, M., Bolker, B., &amp; Walker, S. &#40;2014&#41;. Fitting linear mixed-effects models using lme4. arXiv preprint arXiv:1406.5823.</p> <li><p>MixedModels.jl: https://juliastats.org/MixedModels.jl/dev/</p> </ul> <script src="https://utteranc.es/client.js" repo="oizin/oizin.github.io" issue-term=title  label=Comment  theme=github-light  crossorigin=anonymous  async> </script> <div class=page-foot > <div class=copyright > &copy; Oisin Fitzgerald. Last modified: December 08, 2021. Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>. </div> </div> </div> </div> </div> <script src="/libs/katex/katex.min.js"></script> <script src="/libs/katex/auto-render.min.js"></script> <script>renderMathInElement(document.body)</script> <script src="/libs/highlight/highlight.pack.js"></script> <script>hljs.initHighlightingOnLoad();hljs.configure({tabReplace: ' '});</script> <label for=sidebar-checkbox  class=sidebar-toggle ></label>

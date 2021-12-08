@@ -2,44 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
 <url>
-    <loc>https://oizin.github.io/dl-ar/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
+    <loc>https://oizin.github.io/posts/bitcoin-volatility/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://oizin.github.io/test/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-</url>
-<url>
-    <loc>https://oizin.github.io/about/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-</url>
-<url>
-    <loc>https://oizin.github.io/404/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
+    <loc>https://oizin.github.io/posts/structural-nested-mean-models/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
     <loc>https://oizin.github.io/robustness-neural-odes/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
+    <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://oizin.github.io/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
+    <loc>https://oizin.github.io/posts/linear-mixed-effects/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/dl-ar/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/posts/gp-linear/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/404/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/posts/autodiff-forward/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/posts/causal-mediation/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/posts/simulation-based-inference/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/about/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/test/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
 <url>
     <loc>https://oizin.github.io/contact/index.html</loc>
-    <lastmod>2021-12-07</lastmod>
+    <lastmod>2021-12-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+</url>
+<url>
+    <loc>https://oizin.github.io/index.html</loc>
+    <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
 </url>
