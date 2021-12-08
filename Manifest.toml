@@ -394,9 +394,9 @@ version = "0.10.23"
 
 [[Franklin]]
 deps = ["Dates", "DelimitedFiles", "DocStringExtensions", "ExprTools", "FranklinTemplates", "HTTP", "Literate", "LiveServer", "Logging", "Markdown", "NodeJS", "OrderedCollections", "Pkg", "REPL", "Random"]
-git-tree-sha1 = "eb5872418e5c0b86049adb62151530041368c9d1"
+git-tree-sha1 = "443ef18f57caffec78ad98726bbf137383766eca"
 uuid = "713c75ef-9fc9-4b05-94a9-213340da978e"
-version = "0.10.36"
+version = "0.10.64"
 
 [[FranklinTemplates]]
 deps = ["LiveServer"]
@@ -774,9 +774,9 @@ version = "2.9.4"
 
 [[LiveServer]]
 deps = ["Crayons", "FileWatching", "HTTP", "Pkg", "Sockets", "Test"]
-git-tree-sha1 = "4db4abb8b7d8dadff178b8311e540c86dffcf97d"
+git-tree-sha1 = "505e296f3a4babe953d808fd944e7cffd160c407"
 uuid = "16fef848-5104-11e9-1b77-fb7a48bbb589"
-version = "0.6.6"
+version = "0.7.1"
 
 [[LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
