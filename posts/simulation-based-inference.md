@@ -1,5 +1,8 @@
 @def title = "Simulation-based inference"
 @def showall = true
+@def tags = ["statistics"]
+@def rss_description = "A look at a paper on simulation-based inference."
+@def rss_pubdate = Date(2021, 04, 01)
 
 # Simulation-based inference
 Oisín Fitzgerald, April 2021

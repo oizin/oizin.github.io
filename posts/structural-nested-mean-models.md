@@ -1,5 +1,8 @@
 
 @def title = "Structural Nested Mean Models"
+@def tags = ["R","statistics","causal inference"]
+@def rss_description = "A description of structural nested mean models for causal inference."
+@def rss_pubdate = Date(2021, 01, 01)
 
 \newcommand{\figenv}[3]{
 ~~~

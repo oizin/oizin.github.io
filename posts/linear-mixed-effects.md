@@ -1,4 +1,7 @@
 @def title = "LMMs"
+@def tags = ["julia","statistics"]
+@def rss_description = "An introduction to the uses and estimation of linear mixed effect models."
+@def rss_pubdate = Date(2021, 12, 8)
 
 \newcommand{\figenv}[3]{
 ~~~

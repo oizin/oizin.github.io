@@ -1,4 +1,7 @@
 @def title = "Causal Mediation"
+@def tags = ["R","statistics","causal inference"]
+@def rss_description = "An introduction to causal mediation analysis in RCTs."
+@def rss_pubdate = Date(2021, 03, 01)
 
 \newcommand{\figenv}[3]{
 ~~~

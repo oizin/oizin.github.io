@@ -1,4 +1,7 @@
 @def title = "ARCH models"
+@def tags = ["R","statistics","forecasting"]
+@def rss_description = "An quick overview of volatility modelling with ARCH models"
+@def rss_pubdate = Date(2021, 03, 01)
 
 \newcommand{\figenv}[3]{
 ~~~

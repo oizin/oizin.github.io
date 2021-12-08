@@ -1,5 +1,8 @@
 @def title = "Gaussian processes and linear regression"
 @def showall = true
+@def tags = ["julia","statistics","machine learning"]
+@def rss_description = "Relating Gaussian processes to linear regression."
+@def rss_pubdate = Date(2021, 05, 01)
 
 \newcommand{\figenv}[3]{
 ~~~

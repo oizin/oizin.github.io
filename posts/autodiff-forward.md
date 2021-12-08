@@ -1,6 +1,9 @@
 
 @def title = "Forward model autodiff"
 @def showall = true
+@def tags = ["julia","computer science"]
+@def rss_description = "An introduction to forward mode automatic differentiation."
+@def rss_pubdate = Date(2021, 04, 01)
 
 \newcommand{\figenv}[3]{
 ~~~
