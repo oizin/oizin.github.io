@@ -1,13 +1,12 @@
 # test page
 
 ```julia:test1
-using MixedModels
-x = 3
+using RDatasets
 ```
 
-```julia:test3
-y = 5
-println(x)
+```julia:test2
+df = dataset("plm", "Gasoline")
+println(df)
 ```
 
-\output{test3}
+\output{test2}
