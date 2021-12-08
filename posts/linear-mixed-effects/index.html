@@ -129,7 +129,7 @@ b &#61; sqrt&#40;θ2&#41; .* randn&#40;n&#41;
 Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
 y &#61; X * β &#43; Z * b &#43; randn&#40;N*n&#41;;
 res &#61; lmm_fit&#40;X,Z,y&#41;;
-println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [1.047, 2.693]
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre> <pre><code class="plaintext code-output">Variance components: [1.06, 3.274]
 </code></pre> <p>Clearly it is still worth using <code>MixedModels.jl</code> but the benefit of being able to code it yourself is the freedom you get to make changes in the underlying algorithm and see the effects.</p> <h3 id=example_revisited ><a href="#example_revisited" class=header-anchor >Example revisited </a></h3> <p>Estimating the car ownership model using <code>lmm_fit</code> gives the following results. </p> <pre><code class=language-julia >df.Time &#61; df.Year .- 1965
 n &#61; length&#40;unique&#40;df.Country&#41;&#41;
 N &#61; length&#40;unique&#40;df.Year&#41;&#41;

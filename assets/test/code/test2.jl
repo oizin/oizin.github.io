@@ -1,3 +1,3 @@
 # This file was generated, do not modify it. # hide
-y = 5
-println(x)
+df = dataset("plm", "Gasoline")
+println(df)

@@ -1,7 +1,4 @@
-<!doctype html> <html lang=en > <meta charset=UTF-8 > <meta name=viewport  content="width=device-width, initial-scale=1"> <link rel=stylesheet  href="/libs/highlight/github.min.css"> <link rel=stylesheet  href="/css/franklin.css"> <link rel=stylesheet  href="/css/poole_lanyon.css"> <link rel=stylesheet  href="/css/adjust.css"> <link rel=stylesheet  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> <link rel=icon  href="/assets/logo.jpg"> <title>test page</title> <input type=checkbox  class=sidebar-checkbox  id=sidebar-checkbox > <div class=sidebar  id=sidebar > <div class=sidebar-item > <p>A theme adapted from <a href="http://lanyon.getpoole.com/" target=_blank >Lanyon</a>.</p> </div> <nav class=sidebar-nav > <a class="sidebar-nav-item " href="/">Home</a> <a class="sidebar-nav-item " href="/about">About</a> <a class="sidebar-nav-item " href="/contact">Contact</a> </nav> <div class=sidebar-item > <p>&copy; Oisin Fitzgerald.</p> </div> </div> <!-- Wrap is the content to shift when toggling the sidebar. We wrap the content to avoid any CSS collisions with our real content. --> <div class=wrap > <div class=masthead > <div class=container > <h3 class=masthead-title > <a href="/" title=Home >A data science blog</a> <nav> <a href="https://github.com/oizin/" style="color: #000000;"><i class="fa fa-github"></i></a> <a href="https://twitter.com/ozijn" style="color: #000000;"><i class="fa fa-twitter"></i></a> </nav> </h3> </div> </div> <div class="container content"> <div class=franklin-content ><h1 id=test_page ><a href="#test_page" class=header-anchor >test page</a></h1> <pre><code class=language-julia >using RDatasets</code></pre>
-<pre><code class=language-julia >df &#61; dataset&#40;&quot;plm&quot;, &quot;Gasoline&quot;&#41;
-println&#40;df&#41;</code></pre>
-<pre><code class="plaintext code-output">342×6 DataFrame
+342×6 DataFrame
  Row │ Country   Year   LGasPCar  LIncomeP  LRPMG       LCarPCap
      │ Cat…      Int32  Float64   Float64   Float64     Float64
 ─────┼────────────────────────────────────────────────────────────
@@ -347,19 +344,3 @@ println&#40;df&#41;</code></pre>
  340 │ U.S.A.     1976   4.81489  -5.29795  -1.15468     -7.57475
  341 │ U.S.A.     1977   4.81103  -5.25661  -1.17591     -7.55346
  342 │ U.S.A.     1978   4.81845  -5.22123  -1.21206     -7.53618
-</code></pre>
-<div class=page-foot >
-  <div class=copyright >
-    &copy; Oisin Fitzgerald. Last modified: December 08, 2021. Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
-  </div>
-</div>
-</div>
-      </div>  
-    </div> 
-    
-    
-        <script src="/libs/highlight/highlight.pack.js"></script>
-<script>hljs.initHighlightingOnLoad();hljs.configure({tabReplace: '    '});</script>
-
-    
-    <label for=sidebar-checkbox  class=sidebar-toggle ></label>
