@@ -14,19 +14,7 @@
     <priority>0.5</priority>
 </url>
 <url>
-    <loc>https://oizin.github.io/robustness-neural-odes/index.html</loc>
-    <lastmod>2021-12-08</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-</url>
-<url>
     <loc>https://oizin.github.io/posts/linear-mixed-effects/index.html</loc>
-    <lastmod>2021-12-08</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-</url>
-<url>
-    <loc>https://oizin.github.io/dl-ar/index.html</loc>
     <lastmod>2021-12-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>

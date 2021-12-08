@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  {{fd2rss website_title}}  ]]>
+    </title>
+    <link> {{website_url}} </link>
+    <description>
+      <![CDATA[  {{fd2rss website_description}}  ]]>
+    </description>
+    <atom:link
+      href="{{fd_rss_feed_url}}"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  Forward model autodiff  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/autodiff-forward/index.html </link>
+  <guid> https://oizin.github.io/posts/autodiff-forward/index.html </guid>
+  <description>
+    <![CDATA[  An introduction to forward mode automatic differentiation.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="forward_mode_automatic_differentiation">Forward mode automatic differentiation</h1>
+<p>Oisín Fitzgerald, April 2021</p>
+<div class="boxed"><p>A look at the first half &#40;up to section 3.1&#41; of:  </p>
+<p>Baydin, A. G., Pearlmutter, B. A., Radul, A. A., &amp; Siskind, J. M. &#40;2018&#41;. Automatic differentiation in machine learning: a survey. Journal of machine learning research, 18.  </p>
+<p><a href="https://www.jmlr.org/papers/volume18/17-468/17-468.pdf">https://www.jmlr.org/papers/volume18/17-468/17-468.pdf</a></p></div>
+<h2 id="introduction">Introduction</h2>
+<p>Automatic differentiation &#40;autodiff&#41; reminds me of Arthur C. Clarke&#39;s quote &quot;any sufficiently advanced technology is indistinguishable from magic&quot;. Whereas computer based symbolic and numerical  differentiation seem like natural descendants from blackboard based calculus, the first time I learnt about autodiff &#40;through <a href="https://pytorch.org/">Pytorch</a>&#41; I was amazed. It is not that the ideas underlying autodiff themselves are particularly complex, indeed Bayin et al&#39;s look at the history of autodiff puts Wengert&#39;s 1964 paper entitled &quot;A simple automatic derivative evaluation program&quot; as a key moment in forward mode autodiff history. &#40;BTW the paper is only 2 pages long - well worth taking a look&#41;. For me the magic comes from autodiff being this digitally inspired look at something as &quot;ordinary&quot; but so important to scientific computing and AI as differentiation.</p>
+<h2 id="differentiation">Differentiation</h2>
+<p>If you are unsure of what the terms symbolic or numerical differentiation mean, I&#39;ll give a a quick overview below but would encourage you to read the paper and it&#39;s references for a more detailed exposition of their various  strengths and weaknesses. </p>
+<h3 id="numeric_differentiation_-_wiggle_the_input">Numeric differentiation - wiggle the input</h3>
+<p>For a function \(f\) with a 1D input and output describing numeric differentiation &#40;also known as the finite difference method&#41; comes quite naturally from the definition of the derivative. The derivative is</p>
+\[\frac{df}{dx} = \text{lim}_{h \rightarrow 0}\frac{f(x+h)-f(x)}{h}\]
+<p>so we approximate this expression by picking a small enough \(h\)  &#40;there are more complex schemes&#41;.  There are two sources of error here, the first is from approximating the infinitesimally small \(h\) with a plain finitely small \(h\) &#40;<em>truncation error</em>&#41; and the second is from <em>round-off error</em>.  Round-off error occurs because not every number is represented in the set of floating point numbers so for a small \(h\) the difference \(f(x+h)-f(x)\) can be quite unstable. Unfortunately these two source of error play against each other &#40;see graph - on the left hand size round-off error dominates whereas on the right hand side truncation error dominates&#41;.</p>
+<pre><code class="language-julia">using Plots
+plotlyjs&#40;&#41;
+h &#61; 10 .^ range&#40;-15, -3, length&#61;1000&#41;
+x0 &#61; 0.2
+f&#40;x&#41; &#61; &#40;64*x*&#40;1-x&#41;*&#40;1-2*x&#41;^2&#41;*&#40;1-8*x&#43;8*x^2&#41;^2
+df &#61; &#40;f.&#40;x0 .&#43; h&#41; .- f&#40;x0&#41;&#41; ./ h
+plot&#40;log10.&#40;h&#41;,log10.&#40;abs.&#40;&#40;df .- 9.0660864&#41;&#41;&#41;,
+xlabel&#61;&quot;log10&#40;h&#41;&quot;,ylabel&#61;&quot;log10&#40;|Error|&#41;&quot;,legend&#61;false&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/autodiff-forward/code/output/finite.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>However, such small errors are actually not all that important in machine learning&#33; The main issue with numeric differentiation for machine learning is that the number of required evaluations of our function \(f\) scales linearly with the number of dimension of the gradient. In contrast backpropagation &#40;an autodiff method&#41; can calculate the  derivatives in &quot;two&quot; evaluations of our function &#40;one forward, one back&#41;. </p>
+<h3 id="symbolic_-_fancy_lookup_tables">Symbolic - fancy lookup tables</h3>
+<p>Symbolic differentiation is differentiation as you learnt it in school programmed into software, all the rules \(\frac{d}{dx}\text{cos}(x) = -\text{sin}(x), \frac{d}{dx} x^p = px^{(p-1)}, \frac{d}{dx}f(g(x)) = f'(g(x))g'(x)\) etc... are known and utilised by the software. If you evaluate the derivative of a  function <code>f</code> using a symbolic programming language <code>dfdx &#61; derivative&#40;f,x&#41;</code> the object returned <code>dfdx</code> is just whatever function the symbolic program matches as the derivative of <code>f</code> using it&#39;s internal derivative lookup and application of the rules of differentiation &#40;chain rule etc&#41;. <strong>It is manipulation of expressions</strong>.  The main issue with symbolic differentiation for ML &#40;which anyone who has used Mathematica for a help with a difficult problem can attest to&#41; is expression swell, where the derivative expression is exponentially longer than the original expression and involves repeated calculations.</p>
+<h3 id="automatic_differentiation_-_alter_the_program">Automatic differentiation - alter the program</h3>
+<p>Autodiff is the augmentation of a computer program to perform standard computations along with <strong>calculation of derivatives</strong>, there is no manipulation of expressions. It takes advantage of the fact that derivative expressions can be broken down into  elementary operations that can be combined to give the derivative of the overall  expression. I&#39;ll be more clear about elementary operations soon but you can think of an elementary operations as being any operation you could give to a node on a computational graph of your program.</p>
+<h2 id="forward_mode">Forward mode</h2>
+<p>To be more concrete about autodiff, let&#39;s look at forward mode. Consider evaluating \(f(x_1,x_2) = x_1 x_2 + \text{log}(x_1 ^2)\). We break this into the computational graph below and associate with each elementary operation the intermediate variable \(\dot{v}_i = \frac{\partial v_i}{\partial x}\), called the &quot;tangent&quot;. The final &quot;tangent&quot; value \(\dot{v}_5\), which has been calculated as the function evaluates at the input &#40;3,5&#41; is a derivative at the point &#40;3,5&#41;. What derivative exactly depends on the initial values of \(\dot{x_1}\) and \(\dot{x_2}\). </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/autodiff-forward-20210426/example.png" style="padding:0; width:150%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h2 id="sketching_a_forward_mode_autodiff_library">Sketching a forward mode autodiff library</h2>
+<p>It&#39;s surprisingly easy to implement forward mode autodiff in <a href="http://www.julialang.org">Julia</a> &#40;at least a naive form&#41;. Below I create a forward model module that creates a new object <code>Dual</code> that is a type of <code>Number</code>, and then proceed to overload common mathematical functions &#40;e.g. <code>sin</code> and <code>*</code>&#41; to account for this new number type. Each instance of <code>Dual</code> with have a <code>p</code>rime and <code>t</code>angent slot. If we want the derivative with respect to argument <code>x₁</code> of the function <code>y &#61; f&#40;x₁,x₂&#41;</code>  we simply set <code>x₁.t &#61; 1.0</code> &#40;leaving <code>x₂.t &#61; 0.0</code>&#41; and check the value of <code>y.t</code>. For more see <a href="https://www.youtube.com/watch?v&#61;vAp6nUMrKYg&amp;t&#61;363s">this video</a> from MIT&#39;s Alan Edelman</p>
+<pre><code class="language-julia">import Base: &#43;,-,/,*,^,sin,cos,exp,log,convert,promote_rule,printlnstruct Dual &lt;: Number
+  p::Number # prime
+  t::Number # tangent
+end&#43;&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p &#43; y.p, x.t &#43; y.t&#41;-&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p - y.p, x.t - y.t&#41;/&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p/y.p, &#40;x.t*y.p - x.p*y.t&#41;/x.p^2&#41;*&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p*y.p, x.t*y.p &#43; x.p*y.t&#41;sin&#40;x::Dual&#41; &#61; Dual&#40;sin&#40;x.p&#41;, cos&#40;x.p&#41; * x.t&#41;cos&#40;x::Dual&#41; &#61; Dual&#40;cos&#40;x.p&#41;, -sin&#40;x.p&#41; * x.t&#41;exp&#40;x::Dual&#41; &#61; Dual&#40;exp&#40;x.p&#41;, exp&#40;x.p&#41; * x.t&#41;log&#40;x::Dual&#41; &#61; Dual&#40;log&#40;x.p&#41;, &#40;1/x.p&#41; * x.t&#41;^&#40;x::Dual,p::Int&#41; &#61; Dual&#40;x.p^p,p*x.p^&#40;p-1&#41;* x.t&#41;# We can think of dual numbers analogously to complex numbers
+# The epsilon term will be the derivative
+println&#40;x::Dual&#41; &#61; println&#40;x.p,&quot; &#43; &quot;,x.t,&quot;ϵ&quot;&#41;# deal with conversion, and Dual with non-Dual math
+convert&#40;::Type&#123;Dual&#125;, x::Number&#41; &#61; Dual&#40;&#40;x,zero&#40;x&#41;&#41;&#41;
+promote_rule&#40;::Type&#123;Dual&#125;,::Type&#123;&lt;:Number&#125;&#41; &#61; Dual;</code></pre>
+<p>Lets test on our example \(f(x_1,x_2) = x_1 x_2 + \text{log}(x_1 ^2)\), the derivative at &#40;3,5&#41; should be \(5 \frac{2}{3}\).</p>
+<pre><code class="language-julia">x1 &#61; Dual&#40;3.0,1.0&#41;
+x2 &#61; Dual&#40;5.0,0.0&#41;
+f&#40;x1,x2&#41; &#61; x1*x2 &#43; log&#40;x1^2&#41;
+y &#61; f&#40;x1,x2&#41;
+# df/dx1
+println&#40;y.t&#41;
+# direct calculation
+println&#40;x2.p &#43; 2/x1.p&#41;</code></pre><pre><code class="plaintext code-output">5.666666666666667
+5.666666666666667
+</code></pre><h2 id="conclusion">Conclusion</h2>
+<p>Autodiff is important in machine learning and scientific computing and &#40;forward mode&#41; surprisingly easy to implement. I&#39;ll look at reverse mode autodiff in another post. </p>
+<p>Thanks to Oscar Perez Concha who helped with discussions on the content of this post.  </p>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Thu, 01 Apr 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>

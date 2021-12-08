@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  {{fd2rss website_title}}  ]]>
+    </title>
+    <link> {{website_url}} </link>
+    <description>
+      <![CDATA[  {{fd2rss website_description}}  ]]>
+    </description>
+    <atom:link
+      href="{{fd_rss_feed_url}}"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  LMMs  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/linear-mixed-effects/index.html </link>
+  <guid> https://oizin.github.io/posts/linear-mixed-effects/index.html </guid>
+  <description>
+    <![CDATA[  An introduction to the uses and estimation of linear mixed effect models.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="linear_mixed_effect_models">Linear mixed effect models</h1>
+<p>Oisín Fitzgerald, December 2021</p>
+<div class="franklin-toc"><ol><li>Introduction <ol><li>Mixed effect models</li><li>Linear mixed effect models</li><li>Motivating example </li></ol></li><li>Estimation <ol><li>Theory</li><li>Algorithm </li><li>Julia implementation</li><li>Example revisited </li></ol></li><li>Conclusion</li><li>References </li></ol></div>
+<div class="boxed"><p>This is an introduction to linear mixed effect models. It is based on Simon Wood&#39;s book on generalised additive models and notes and articles by Douglas Bates, listed at the end. Code written in <a href="https://julialang.org/">Julia</a>.</p>
+<p><strong>A bit rough - comments welcome&#33;</strong></p></div>
+<h2 id="introduction">Introduction </h2>
+<h3 id="mixed_effect_models">Mixed effect models</h3>
+<p>Multilevel or mixed effect models are useful whenever our data contains repeated samples from the &quot;statistical units&quot;  that make up our data. There is no fixed definition of a unit - what matters is  that we consider it likely that the data within each unit is correlated. For example:</p>
+<ul>
+<li><p>Repeated blood pressure measurements from a group of individuals. Each individual&#39;s blood pressure is likely to be highly correlated over time. </p>
+</li>
+<li><p>Assessment of student performance over several schools. Since each school has it&#39;s own set of teachers, policies, and enrolment area, student performance within a school may be correlated.</p>
+</li>
+</ul><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/lmm-20210629/sampling.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>Why does this correlation matter? Well, if we have \(N\) units each with \(n\) measurements while our data contains \(N \times n\) observations we might actually have much closer to \(N\) pieces of <em>independent</em> information. This depends on the strength of the &#40;positive&#41; correlation within a unit. At the extreme, if we had a sample of people with extremely stable blood pressures, and we observe \(\text{person}\_1 = (121/80, 120/80,...)\), \(\text{person}\_2 = (126/78, 126/78,...)\) and so on then clearly you really only have \(~N\) pieces of independent information. Essentially all the information &#40;variation&#41; in the data is in the differences <em>between</em> units, rather than temporal changes <em>within</em> units &#40;since these are small/nonexistent&#41;. </p>
+<p>Below is an example of the number of cars per capita in certain countries over time using the <strong>gasoline</strong> dataset from the R package plm. Some noticeable facts about this dataset are 1&#41; there is a clear difference in the number of cars between countries in the initial year of study &#40;1960&#41; 2&#41; this initial difference is also far larger than the change within any one country over the time course of the study and 3&#41; each country changes in a steady quite predictable fashion. The dataset contains other variables &#40;income per capital and gas price&#41; which may explain some of this variation in initial conditions and rate of change.</p>
+<pre><code class="language-julia">using CairoMakie, DataFrames, RDatasets, Statistics
+df &#61; dataset&#40;&quot;plm&quot;, &quot;Gasoline&quot;&#41;
+f &#61; Figure&#40;resolution &#61; &#40;800, 400&#41;&#41;
+ax &#61; Axis&#40;f&#91;1,1&#93;, xlabel &#61; &quot;Year&quot;, ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;,
+    title &#61; &quot;Variation at baseline and over time&quot;&#41;
+for country in unique&#40;df.Country&#41;
+    msk &#61; df.Country .&#61;&#61; country
+    lines&#33;&#40;ax,df.Year&#91;msk&#93;,df.LCarPCap&#91;msk&#93;,color &#61; :lightblue&#41;
+end 
+f</code></pre>
+<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/linear-mixed-effects/code/output/fig1.svg" style="padding:0; width:100%" alt=" Cars per capital for 18 countries (1960-1980)"/>
+<figcaption> Cars per capital for 18 countries (1960-1980)</figcaption>
+</figure><p>What mixed effect models do is divide up the variation that exists in the data into several &quot;buckets&quot;. At the highest level there is explained and unexplained variation. Explained variation is variation that is accounted for by your predictor features &#40;covariates&#41;. These terms are often called fixed effects. For example, differences in blood pressure may be accounted for by differences in amount of salt intake or exercise quantity. Note that this can be both between <strong>and</strong> within units, two people may have different levels of average exercise quantity and one person may change their exercise quantity over time. Longitudinal data structures are very powerful in allowing us to examine difference in the effect of a variable both between and within units. For instance if we found that average exercise amount predicted a lowering in blood pressure but an individual increasing their exercise amount did not we might wonder whether 1&#41; exercise was a proxy for something else or 2&#41; does the change take a long time.</p>
+<p>Looking again at the <strong>gasoline</strong> dataset, we can see that the number of cars per capita is higher in wealthier countries &#40;the between country relationship&#41;, and also that as a country increases in wealth the number of cars per capita increases &#40;the within country relationship&#41;. Indeed the within country relationship is quite clear and strong. In many cases &#40;e.g. certain physiological signals&#41; this relationship is often harder to discern due to the variation within units being of comparable size to &quot;noise&quot; factors such as measurement error and natural variation.</p>
+<pre><code class="language-julia">gdf &#61; groupby&#40;df,:Country&#41;
+mdf &#61; combine&#40;gdf, :LCarPCap &#61;&gt; mean, :LIncomeP &#61;&gt; mean&#41;
+df &#61; leftjoin&#40;df,mdf,on&#61;:Country&#41;
+df.LIncomeP_change &#61; df.LIncomeP - df.LIncomeP_mean
+df.LCarPCap_change &#61; df.LCarPCap - df.LCarPCap_mean
+f &#61; Figure&#40;resolution &#61; &#40;800, 400&#41;&#41;
+ax1 &#61; scatter&#40;f&#91;1, 1&#93;,mdf.LCarPCap_mean,mdf.LIncomeP_mean&#41;
+ax1.axis.xlabel &#61; &quot;Mean cars per capita &#40;log scale&#41;&quot;
+ax1.axis.ylabel &#61; &quot;Mean income per capita &#40;log scale&#41;&quot;
+ax1.axis.title &#61; &quot;Variation between&quot;
+ax2 &#61; scatter&#40;f&#91;1, 2&#93;,df.LCarPCap_change,df.LIncomeP_change&#41;
+ax2.axis.xlabel &#61; &quot;Change in cars per capita &#40;log scale&#41;&quot; 
+ax2.axis.ylabel &#61; &quot;Change in income per capita &#40;log scale&#41;&quot;
+ax2.axis.title &#61; &quot;Variation within&quot;
+f</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/linear-mixed-effects/code/output/fig2.svg" style="padding:0; width:100%" alt=" Cars per capital and income per capita for 18 countries (1960-1980)"/>
+<figcaption> Cars per capital and income per capita for 18 countries (1960-1980)</figcaption>
+</figure><p>Unexplained variation is any variation that cannot be explained by values of &#40;or variation in&#41; the covariates. It is here that we really see the usefulness of mixed effect models. This unexplained variation is decomposed into the unexplained variation between units and within units. The between unit variation &#40;the random effects&#41; are the selling point of mixed effect models. Rather than associate with each term in our model &#40;e.g. the intercept&#41; a single fixed effect we might associate a distribution of effects. This distribution might have small or large degree of variation depending on the extent of the relevant unexplained variation that exists between our units. A notable fact is that we can have between unit variation in any term within our model, for instance the units might differ in their baseline values, suggesting random intercepts. They might also differ in the effect of a particular variable &#40;e.g. time, effect of a drug&#41; giving a random slope. A cartoon version of a random intercept and random slope situation is shown below.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/lmm-20210629/randomeffects.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>A summary of the decomposition of variance view:</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/lmm-20210629/variance.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>The descriptions above suggests you might only have one &quot;level&quot; of units. However, multilevel models can account for many levels of hierarchical clustering. For example, measurements within patients within medical practises.  </p>
+<h3 id="linear_mixed_effect_models__2">Linear mixed effect models</h3>
+<p>The main practical issue with mixed effect models is while we may be able to write down a model that accounts for the variation we believe exists in the data &#40;e.g. following some exploratory data analysis&#41; fitting it turns out to be much harder than standard linear models. The remainder of this post demonstrates the estimation process for linear mixed effects models. With the notation \(x\) / \(X\) refering to a vector / matrix, and \(x_i\) / \(X_{ij}\) the element of a matrix / vector, a linear mixed effects model &#40;LMM&#41; can be written as</p>
+\[y = X\beta + Z b + \epsilon, b \sim N(0,\Lambda_{\theta}), \epsilon \sim N(0,\Sigma_{\theta})\]
+<p>where  </p>
+<ul>
+<li><p>\(\beta \in \mathcal{R}^p\) are the fixed effects, analogous to the coefficients in a standard linear model.</p>
+</li>
+<li><p>\(X \in \mathcal{R}^{Nn \times p}\) is the model matrix for the fixed effects containing the covariates / features.</p>
+</li>
+<li><p>The random vector \(b\) contains the random effects, with zero expected value and covariance matrix \(\Lambda_{\theta}\)  </p>
+</li>
+<li><p>\(Z \in \mathcal{R}^{Nn \times n}\) is the model matrix for the random effects</p>
+</li>
+<li><p>\(\Sigma_{\theta}\) is the residual covariance matrix. It is often assumed that \(\Sigma_{\theta} = \sigma^2 I\)</p>
+</li>
+<li><p>\(\theta\) is the variance-covariance components, a vector of the random effect and residual variance parameters. </p>
+</li>
+</ul><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/lmm-20210629/distributions.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h3 id="motivating_example">Motivating example </h3>
+<p>Using the <strong>gasoline</strong> dataset consider modelling car ownership &#40;per capita&#41; as a function of time &#40;year&#41;, income &#40;per capita&#41; and gas price &#40;inflation adjusted&#41;.</p>
+<pre><code class="language-julia">f &#61; Figure&#40;resolution &#61; &#40;800, 600&#41;&#41;
+ax &#61; Axis&#40;f&#91;1,1:2&#93;, xlabel &#61; &quot;Year&quot;, ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;,
+    title &#61; &quot;Variation at baseline and over time&quot;&#41;
+for country in unique&#40;df.Country&#41;
+    msk &#61; df.Country .&#61;&#61; country
+    lines&#33;&#40;ax,df.Year&#91;msk&#93;,df.LCarPCap&#91;msk&#93;,color &#61; :lightblue&#41;
+end 
+ax1 &#61; scatter&#40;f&#91;2, 1&#93;,df.LIncomeP,df.LCarPCap&#41;
+ax1.axis.ylabel &#61; &quot;Cars per capita &#40;log scale&#41;&quot;
+ax1.axis.xlabel &#61; &quot;Income per capita &#40;log scale&#41;&quot;
+ax2 &#61; scatter&#40;f&#91;2, 2&#93;,df.LRPMG,df.LCarPCap&#41;
+ax2.axis.ylabel &#61; &quot;Gasoline price &#40;log scale&#41;&quot;
+ax2.axis.xlabel &#61; &quot;Income per capita &#40;log scale&#41;&quot;
+f</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/linear-mixed-effects/code/output/fig3.svg" style="padding:0; width:100%" alt=" Cars per capital compared to several factors for 18 countries (1960-1980)"/>
+<figcaption> Cars per capital compared to several factors for 18 countries (1960-1980)</figcaption>
+</figure><p>As mentioned above a commonly used form of the LMM is the random intercept model. In this situation for a single level &#40;country over time&#41; the resulting model for country \(i\) at time \(j\) is</p>
+\[y_{ij} = \beta_0 + \beta_1 \text{year}_{ij} + \beta_2 \text{income}_{ij} + \beta_3 \text{gas}_{ij} + b_i + \epsilon_{ij}, b_i \sim N(0,\sigma_b^2), \epsilon_{ij} \sim N(0,\sigma_e^2)\]
+<p>I won&#39;t go into it&#39;s construction but it is worth thinking about what \(Z\) would look like in this case &#40;if you run the code below you can print out \(Z\)&#41;, and how it would change it we added a time random effect. Doing this will give you a sense of how the size of \(Z\) can grow quite quickly while being a largely sparse matrix &#40;filled with zeros&#41;.</p>
+<h2 id="estimation">Estimation </h2>
+<p>As mentioned LMMs are tricky to estimate, largely due to the presence of the unobserved random effects and additional need to decompose the outcome variance into several variance-covariance parameters. It is worth understanding the estimation process at least superficially as it can aid in debugging &#40;commonly &quot;why is my model taking so long to estimate&#33;?&quot;&#41; and understanding warning messages when using well tested packages written by others.</p>
+<h3 id="theory">Theory</h3>
+<p>Feel free to skim this section. A common approach to estimation of LMMs is maximum likelihood estimation &#40;MLE&#41; or restricted MLE &#40;REML&#41; -  but I&#39;ll just cover MLE here. As noted in Wood &#40;2017&#41; estimation of \(\beta\) and \(\theta\) could be based on the <em>marginal distribution</em> \(p(y)\) of the outcome </p>
+\[y \sim N(X\beta,Z^t\Lambda_{\theta}Z + \Sigma_{\theta})\]
+<p>however this would involve the inversion of a \(Nn \times Nn\) matrix \(Z^t\Lambda_{\theta}Z + \Sigma_{\theta}\). As a result estimation is generally based on the the expression </p>
+\[p(y) = \int p(y,b) db = \int p(y|b)p(b) db\]
+<p>It is worth listing out some the log pdf of the distributions that are going to come up in the derivation of a the final expression. The log transform is taken to remove the exponents and convert multiplication into addition. Here and below \(c_x\) denotes a normalising constant for the distribution of \(x\).</p>
+<ul>
+<li><p>\(\text{log}p(y,b) = \text{log}p(y|b) +  \text{log}p(b)\)</p>
+</li>
+<li><p>\(\text{log}p(y|b) = c_{y|b} + \text{log}|\Sigma_{\theta}| - (y - X\beta - Z b)^t \Sigma_{\theta}^{-1} (y - X\beta - Z b)\)</p>
+</li>
+<li><p>\(\text{log}p(b) = c_{b} + \text{log}|\Lambda_{\theta}| - b^t \Lambda_{\theta}^{-1} b\)</p>
+</li>
+</ul>
+<p>Now we are ready to derive the estimation equations. Let \(\hat{b}\) be the MLE of \(p(y,b)\). Then utilising a Taylor expansion of \(p(y,b)\) about \(\hat{b}\) on the second line below we have</p>
+\[\begin{aligned}
+p(y) &= \int f(y,b) db = \int \text{exp}\{\text{log} p(y,b)\}db \\
+     &= \int \text{exp}\{\text{log} p(y,\hat{b}) + (b-\hat{b})^t \frac{\partial^2 \text{log} p(y,\hat{b})}{\partial b \partial b^t} (b-\hat{b})\}db \\
+     &= p(y,\hat{b}) \int \text{exp}\{-(b-\hat{b})^t (Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})(b-\hat{b})/2\}db \\
+\end{aligned}\]
+<p>The term inside the integral can be recognised is an un-normalised Gaussian pdf with covariance \((Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}\). The  normalisation constant for this pdf would be \(\sqrt{|(Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}| (2\pi)^{n}}\) and so, using the fact that \(|A^{-1}| = |A|^{-1}\) the result of the integral is</p>
+\[\begin{aligned}
+p(y) &= p(y|\hat{b})p(\hat{b}) |(Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1})^{-1}|^{-1/2} c_y \\
+\end{aligned}\]
+<p>In practise we will work with the <em>deviance</em> &#40;minus two times the log-likelihood&#41;, inputting our expressions for \(\text{log} p(y|b)\) and \(\text{log} p(b)\) from above gives the  quantity to be minimised as</p>
+\[
+d(\beta,\theta) = -2l(\beta,\theta) = (y - X\beta - Zb)^t \Sigma_{\theta}^{-1} (y - X\beta - Zb) + b^t \Lambda_{\theta}^{-1} b + 
+\text{log}|Z^t\Sigma_{\theta}^{-1} Z + \Lambda_{\theta}^{-1}| + c_{y|b} + c_{b} +  c_y \\
+\]
+<p>Computation can be based on the observation that for a fixed \(\theta\) we can get estimates of \(\beta\) and \(b\) using the first two terms</p>
+\[
+d_1(\beta,\theta) = (y - X\beta - Zb)^t \Sigma_{\theta}^{-1} (y - X\beta - Zb) + b^t \Lambda_{\theta}^{-1} b
+\]
+<p>Notice that the random effects &#40;e.g. the individual intercept or feature effect&#41; are shrinkage estimates of what we would get  if we let every unit have it&#39;s own intercept or feature effect, hence the term penalised least squares. </p>
+<p>Then estimates of \(\theta\) can be based on the profile likelihood &#40;deviance&#41; \(d_p(\theta) = d(\hat{\beta},\theta)\). </p>
+<p>Some other observations:  </p>
+<ul>
+<li><p>Several of the terms can be interpreted as a complexity penalties on the random effects or variance-covariance parameters.</p>
+</li>
+<li><p>A nicer approach is to let \(b = \Gamma_{\theta} u\) where \(u\) is a spherical normal variable &#40;uncorrelated equal variance&#41; and \(\Lambda_{\theta} = \Gamma_{\theta}^t\Gamma_{\theta}\), reducing the dimension of \(\theta\) by one &#40;Bates et al, 2014&#41;.</p>
+</li>
+</ul>
+<h3 id="algorithm">Algorithm </h3>
+<p>How does estimation go in practise? Often a gradient free optimisation algorithm  &#40;Nelder-Mead or BOBYQA&#41; is used for \(d_p\).</p>
+<ol>
+<li><p>Inputs \(X\), \(Z\), \(y\), optimisation tolerance&#40;s&#41; \(\tau\)</p>
+</li>
+<li><p>Initialise \(B^{(0)}\) &#61; &#91;\(\beta^{(0)}\),\(b^{(0)}\)&#93; &#61; \(0\), \(\theta^{(0)} = \bold{1}\), </p>
+</li>
+<li><p>While \(\tau\) not met:</p>
+<ol>
+<li><p>\(B^{(k)}\): argmin \(d_1(\beta,\theta)\)</p>
+</li>
+<li><p>\(\theta^{(k)}\): argmin \(d_p(\theta)\)  </p>
+</li>
+</ol>
+</li>
+</ol>
+<p>This is high level &#40;but reasonable for understanding&#41; view of how software packages like lme4 or MixedModel perform estimation for LMMs.  See Bates et al &#40;2015&#41; for a detailed overview of the numerical linear algebra considerations in the implementations. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/lmm-20210629/optimisation.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h3 id="julia_implementation">Julia implementation</h3>
+<p>For a more complete idea of how to code LMMs in practise see the source code for MixedModels.jl. The code below estimates \(\beta\) and the variance components \(\theta\). </p>
+<pre><code class="language-julia">## libraries
+# linear algebra
+using LinearAlgebra, SparseArrays
+# optimisation
+using Optim
+import Statistics&quot;&quot;&quot;
+Calculates log likelihood for LMM. 
+Internally calculates fixed and random effects given estimates of the variance-covariance components, 
+with modification of first three arguments βb, LL, rr. Designed for &#96;lmm_fit&#96;.Args
+    βb  : vector of estimates of fixed and random effects
+    D   : fixed and random effect design matrices
+    DtD : D&#39;D
+    Dty : D&#39;y
+    y   : outcome vector
+    logθ: log of variance-covariance components
+    dim : tuple of dimensions&quot;&quot;&quot;
+function loglik&#33;&#40;βb,D,DtD,Dty,y,logθ,dim&#41;
+    σ,σ_b &#61; exp.&#40;logθ&#41;    # dimensions
+    Nn,n,p &#61; dim
+    N &#61; Nn/n    # estimation of \beta and b given theta
+    diagf &#61; diagm&#40;&#91;repeat&#40;&#91;0.0&#93;,p&#41;;repeat&#40;&#91;1/σ_b^2&#93;,n&#41;&#93;&#41;
+    LL &#61; DtD ./ σ^2 &#43; diagf
+    βb&#91;:&#93; &#61; LL \ &#40;Dty ./ σ^2&#41;    # -2 log likelihood &#40;profile likelihood&#41;
+    logdetθ &#61; logdet&#40;DtD&#91;&#40;p&#43;1&#41;:end,&#40;p&#43;1&#41;:end&#93; ./ σ^2 &#43; diagf&#91;&#40;p&#43;1&#41;:end,&#40;p&#43;1&#41;:end&#93;&#41;
+    nll &#61; &#40;1/σ^2&#41;*sum&#40;&#40;y - D*βb&#41;.^2&#41; &#43; &#40;1/σ_b^2&#41;*sum&#40;βb&#91;&#40;p&#43;1&#41;:end&#93;.^2&#41; &#43; 2*logdetθ  &#43; n*log&#40;σ_b^2&#41; &#43; Nn*log&#40;σ^2&#41; &#43; n*log&#40;2*π&#41;
+    nll ./ 2
+end&quot;&quot;&quot;
+Estimate a LMMArgs
+    X : Fixed effect design matrix
+    Z : Random effect design matrix
+    y : outcome
+&quot;&quot;&quot;
+function lmm_fit&#40;X,Z,y&#41;    # dimensions / data
+    Nn &#61; length&#40;y&#41;
+    n &#61; size&#40;Z&#41;&#91;2&#93;
+    p &#61; size&#40;X&#41;&#91;2&#93;
+    dim &#61; &#40;Nn,n,p&#41;
+    D &#61; &#91;X Z&#93;
+    DtD &#61; D&#39;D
+    Dty &#61; D&#39;y    # optimisation setup
+    βb &#61; zeros&#40;n&#43;p&#41;
+    θ0 &#61; ones&#40;2&#41;    # optimise
+    opt &#61; optimize&#40;var -&gt; loglik&#33;&#40;βb,D,DtD,Dty,y,var,dim&#41;, log.&#40;θ0&#41;, NelderMead&#40;&#41;&#41;
+    θ &#61; exp.&#40;Optim.minimizer&#40;opt&#41;&#41;    # output
+    out &#61; LMM&#40;βb&#91;1:p&#93;,θ,βb&#91;&#40;p&#43;1&#41;:end&#93;,opt&#41;
+    out
+end
+&quot;&quot;&quot;
+A struct to store the results of our LMM estimation
+&quot;&quot;&quot;
+struct LMM
+    β
+    θ
+    b
+    opt
+end# A small test - the output should be approx &#91;1.0,3.0&#93;
+N, n, p &#61; 30, 100, 10
+ids &#61; repeat&#40;1:n,inner&#61;N&#41;
+X &#61; &#91;repeat&#40;&#91;1.0&#93;,N*n&#41; randn&#40;N*n,p&#41;&#93;
+β &#61; randn&#40;p&#43;1&#41;
+θ2 &#61; 3.0
+b &#61; sqrt&#40;θ2&#41; .* randn&#40;n&#41;
+Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
+y &#61; X * β &#43; Z * b &#43; randn&#40;N*n&#41;;
+res &#61; lmm_fit&#40;X,Z,y&#41;;
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;</code></pre>
+<pre><code class="plaintext code-output">Variance components: [1.047, 2.693]
+</code></pre>
+<p>Clearly it is still worth using <code>MixedModels.jl</code> but the benefit of being able to code it yourself is the  freedom you get to make changes in the underlying algorithm and see the effects.</p>
+<h3 id="example_revisited">Example revisited </h3>
+<p>Estimating the car ownership model using <code>lmm_fit</code> gives the following results. </p>
+<pre><code class="language-julia">df.Time &#61; df.Year .- 1965
+n &#61; length&#40;unique&#40;df.Country&#41;&#41;
+N &#61; length&#40;unique&#40;df.Year&#41;&#41;
+X &#61; &#91;repeat&#40;&#91;1.0&#93;,size&#40;df&#41;&#91;1&#93;&#41; df.Time df.LIncomeP df.LRPMG&#93;
+Z &#61; sparse&#40;kron&#40;sparse&#40;1I, n, n&#41;,repeat&#40;&#91;1&#93;,N&#41;&#41;&#41;
+y &#61; df.LCarPCap
+res &#61; lmm_fit&#40;X,Z,y&#41;;
+println&#40;&quot;Variance components: &quot;,round.&#40;res.θ .^ 2,digits&#61;3&#41;&#41;
+println&#40;&quot;Fixed effects: &quot;,round.&#40;res.β,digits&#61;4&#41;&#41;</code></pre>
+<pre><code class="plaintext code-output">Variance components: [0.031, 1.619]
+Fixed effects: [6.6648, -0.0123, 2.5672, -0.1986]
+</code></pre>
+<p>Estimating the car ownership model from above using <code>MixedModels.jl</code> gives the following results. </p>
+<pre><code class="language-julia">using MixedModels
+m1 &#61; fit&#40;MixedModel, @formula&#40;LCarPCap ~ 1 &#43; Time &#43; LIncomeP &#43; LRPMG &#43; &#40;1|Country&#41;&#41;, df&#41;
+println&#40;m1&#41;</code></pre>
+<pre><code class="plaintext code-output">Linear mixed model fit by maximum likelihood
+ LCarPCap ~ 1 + Time + LIncomeP + LRPMG + (1 | Country)
+   logLik   -2 logLik     AIC       AICc        BIC    
+    57.5230  -115.0460  -103.0460  -102.7952   -80.0371Variance components:
+            Column   Variance Std.Dev. 
+Country  (Intercept)  1.627124 1.275588
+Residual              0.028976 0.170223
+ Number of obs: 342; levels of grouping factors: 18  Fixed-effects parameters:
+────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)
+────────────────────────────────────────────────────
+(Intercept)   6.69453    0.727785     9.20    <1e-19
+Time         -0.0124492  0.00439073  -2.84    0.0046
+LIncomeP      2.57169    0.104949    24.50    <1e-99
+LRPMG        -0.195353   0.0807133   -2.42    0.0155
+────────────────────────────────────────────────────
+</code></pre>
+<p>The results from the two approaches are similar, the minor differences can be attributed to use of different optimisation routines. Interpreting the results it looks like income is the most important factor in predicting increased car ownership. Gas prices decreasing and temporal trends are noiser seconds. Indeed the sign for time is negative which may be a result of some collinearity due to income and time increasing together. The intercept random effect still has reasonably large variation, although it is clearly smaller than what we would expect if time was the only covariate &#40;see the first figure&#41;.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>We&#39;ve covered the background of why you might use mixed effects models, along with the estimation of linear mixed effects models. Some other interesting topics worth exploring are the estimation of generalised linear mixed effects models, and a comparison with taking a Bayesian approach to model estimation. Thanks for reading&#33; :&#41;</p>
+<h2 id="references">References </h2>
+<p>This document borrows from the following: </p>
+<ul>
+<li><p>Wood, S. N. &#40;2017&#41;. Generalized additive models: an introduction with R. CRC press.  </p>
+</li>
+<li><p>Bates, D., Mächler, M., Bolker, B., &amp; Walker, S. &#40;2014&#41;. Fitting linear mixed-effects models using lme4. arXiv preprint arXiv:1406.5823.</p>
+</li>
+<li><p>MixedModels.jl: https://juliastats.org/MixedModels.jl/dev/</p>
+</li>
+</ul>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Wed, 08 Dec 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Gaussian processes and linear regression  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/gp-linear/index.html </link>
+  <guid> https://oizin.github.io/posts/gp-linear/index.html </guid>
+  <description>
+    <![CDATA[  Relating Gaussian processes to linear regression.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="gaussian_processes_and_linear_regression">Gaussian processes and linear regression</h1>
+<p>Oisín Fitzgerald, May 2021</p>
+<div class="boxed"><p>A look at section 6.4 of: </p>
+<p>Bishop C.M. &#40;2006&#41;. Pattern recognition and machine learning. Springer.</p>
+<p><a href="https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/">https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/</a></p>
+<p>Basically this post goes through &#40;Bayesian&#41; linear regression from a Gaussian process space point of view with some example <a href="https://julialang.org/">Julia</a> code to make things concrete.</p>
+<p>Update &#40;10/11/2021&#41;: Deleted &quot;estimating the hyperparameters&quot; section for now as it was too short and had no examples.</p></div>
+<h2 id="overview">Overview</h2>
+<p>The dominant approach to solving regression problems in machine learning today is finding the parameters \(w\) of a model \(M_w\) that minimise a loss function \(L\) by optimally combining a set of basis vectors. These basis vectors can be the original data \(x_n\) or some transformation \(z_n = \phi(x_n)\) where \((y_n,x_n)\) is the \(n^{th}\) output-input pair \(n \in \{1,...,N\}\) and \(x_n\) is length \(p\) &#40;the number of features&#41;. For example: </p>
+<ul>
+<li><p>Linear regression: find the best set of weights \(w\) that minimise mean square error \(\left\Vert Y - X w \right\Vert\) giving us predictions \(y_n = w^t x_n\). </p>
+</li>
+<li><p>Deep learning: at the other extreme of complexity we can think of deep learning as learning both the basis vectors and the weights. In a network with \(L\) layers the outputs and weights of the final layer are \(z_L\) and \(w_L\) giving us \(y_n =  w_L^t z_L(x_n)\). </p>
+</li>
+</ul>
+<p>With Gaussian processes with are going to switch from thinking in terms of locating which parameters are most likely to have generated the data to considering the data a finite sample from a function that has particular properties. The parameters and function space viewpoint are not conflicting, for example for linear regression:   </p>
+<ol>
+<li><p>Parameter space view: \(y\) is a combination of basis functions with the weights being from a mltivariate normal distribution. </p>
+</li>
+<li><p>Function space view: \(y(x_n)\) is a sample from a family of functions where any finite sample of points \(\{y_1,...,y_N\}\) follow a multivariate normal distibution. </p>
+</li>
+</ol>
+<h2 id="from_the_parameter_to_function_space_view">From the parameter to function space view</h2>
+<p>To fully see the connection let&#39;s go from the parameter space view to the function space view for linear regression. The model is </p>
+\[y(x_n) = w^t x_n\]
+<p>In matrix form the above is written as \(Y = X w\), with each row of the \(N \times p\) matrix \(X\) made up of the \(N\) individual observations \(x^t_n\), each a vector of length \(p+1\), the number of features plus one &#40;to have an intercept term&#41;. The prior distribution on our weights \(w\) reflects a lack of knowledge about the process</p>
+\[w \sim N(0,\alpha^{-1}I)\]
+<p>For example if there is one input we have \(w = (w_0, w_1)^t\) and setting \(\alpha = 1.0\) &#40;arbitrarily&#41; the prior looks like the graph below.</p>
+<pre><code class="language-julia">using Plots, Random, Distributions, LinearAlgebra
+plotlyjs&#40;&#41;
+Random.seed&#33;&#40;1&#41;
+α &#61; 1.0
+d &#61; MvNormal&#40;&#91;0,0&#93;, &#40;1/α&#41;*I&#41;
+W0 &#61; range&#40;-1, 1, length&#61;100&#41;
+W1 &#61; range&#40;-1, 1, length&#61;100&#41;
+p_w &#61; &#91;pdf&#40;d, &#91;w0,w1&#93;&#41; for w0 in W0, w1 in W1&#93;
+contourf&#40;W0, W1, p_w, color&#61;:viridis,xlab&#61;&quot;w0&quot;,ylab&#61;&quot;w1&quot;,title&#61;&quot;Prior: weight space&quot;&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig1.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>Since we treat input features &#40;the x&#39;s&#41; as constants this implies a prior distribution for the output </p>
+\[y \sim N(0,\alpha X^t X)\]
+<p>From the function space view we can randomly sample functions at finite spacings \(\mathfrak{X} = \{x_1,...,x_N\}\) from the prior.</p>
+<pre><code class="language-julia">Random.seed&#33;&#40;1&#41;
+x1 &#61; range&#40;-1, 1, length&#61;100&#41;
+X &#61; &#91;repeat&#40;&#91;1&#93;,100&#41; x1&#93;
+d &#61; MvNormal&#40;repeat&#40;&#91;0&#93;,100&#41;, &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; 1e-10*I&#41;
+p &#61; plot&#40;x1,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line,title&#61;&quot;Prior: function space&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;
+for i in 1:20
+    plot&#33;&#40;p,x1,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line&#41;
+end</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig2.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>The matrix \(K = \text{cov}(y) = \alpha^{-1} X^t X\) is made up of elements \(K_{nm} = k(x_n,x_m) = \frac{1}{\alpha}x_n^t x_m\) with \(k(x,x')\) the kernel function. Notice that the kernel function \(k(x,x')\) returns the variance for \(x = x'\) and covariance between \(x\) and \(x'\) otherwise. Also that we are talking here about the covariance between <em>observations</em>, not features. \(K\) is a \(N \times N\) matrix and so can be quite large. There are many potential kernel functions other than \(k = x^tx\) but that&#39;s for another day.   </p>
+<h2 id="modelling_data_with_straight_lines">Modelling data with straight lines</h2>
+<p>We have a prior on \(y\) and then we observe some data. Let assume there is noise in the data so we observe </p>
+\[t_n = y(x_n) + \epsilon_n\]
+<p>with \(\epsilon_n \sim N(0,\beta)\) random noise that is independent between observations and \(t = \{t_1,...,t_N\}\) the observed output values for input features \(x_n\). </p>
+<pre><code class="language-julia">Random.seed&#33;&#40;1&#41;
+n &#61; 10
+x1 &#61; range&#40;-1, 1, length&#61;n&#41;
+X &#61; &#91;repeat&#40;&#91;1&#93;,n&#41; x1&#93;
+β &#61; 0.01
+d &#61; MvNormal&#40;repeat&#40;&#91;0&#93;,n&#41;, &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; β*I&#41;
+y &#61; rand&#40;d&#41; 
+p &#61; scatter&#40;x1,y,legend&#61;false,title&#61;&quot;Observed data&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig3.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>At this point in practise we could estimate the noise parameter \(\beta\), but lets come back to that. For now assume we know that \(\beta = 0.01\). It is worth remember there are no weights giving us the intercept, slope etc but we can  sample from our distribution of \(y|t\) or \(t*|t\) or given the observed data. Because our interest is in predicting for new observations we&#39;d like to estimate the posterior \(p(t*|t,x,x*)\) for any future input \(x*\). It turns out the posterior for for any \(t*\) is another normal distribution which is coded below. </p>
+<pre><code class="language-julia">p &#61; scatter&#40;x1,y,legend&#61;false,
+            title&#61;&quot;Posterior: function space&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;# new X&#39;s over which to predict
+xs &#61; range&#40;-1, 1, length&#61;100&#41;
+Xs &#61; &#91;repeat&#40;&#91;1&#93;,100&#41; xs&#93;
+ys &#61; zeros&#40;100&#41;# get ready to construct posterior
+σ2 &#61; zeros&#40;100&#41;
+C &#61; &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; β*I
+Cinv &#61; inv&#40;C&#41;# one prediction at a time 
+for i in 1:100
+    k &#61; X * Xs&#91;i,:&#93;
+    c &#61; Xs&#91;i,:&#93;&#39; * Xs&#91;i,:&#93; &#43; β
+    ys&#91;i&#93; &#61; &#40;k&#39; * Cinv&#41; * y
+    σ2&#91;i&#93; &#61; c - &#40;k&#39; * Cinv&#41; * k
+end
+plot&#33;&#40;p,xs,ys, ribbon&#61;&#40;2*sqrt.&#40;σ2&#41;,2*sqrt.&#40;σ2&#41;&#41;, lab&#61;&quot;estimate&quot;&#41;
+plot&#33;&#40;p,xs,ys&#41;# noise free samples from the posterior
+# all predictions at once
+m &#61; &#40;Xs * X&#39;&#41; * Cinv * y
+CV &#61; &#40;Xs * Xs&#39;&#41; - &#40;Xs * X&#39;&#41; * Cinv * &#40;X * Xs&#39;&#41;
+CV &#61; Symmetric&#40;CV&#41; &#43; 1e-10*I
+d &#61; MvNormal&#40;m, Symmetric&#40;CV&#41; &#43; 1e-10*I&#41;
+for i in 1:20
+    plot&#33;&#40;p,xs,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line&#41;
+end</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig4.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure> ]]>
+  </content:encoded>
+    
+  <pubDate>Sat, 01 May 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Forward model autodiff  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/autodiff-forward/index.html </link>
+  <guid> https://oizin.github.io/posts/autodiff-forward/index.html </guid>
+  <description>
+    <![CDATA[  An introduction to forward mode automatic differentiation.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="forward_mode_automatic_differentiation">Forward mode automatic differentiation</h1>
+<p>Oisín Fitzgerald, April 2021</p>
+<div class="boxed"><p>A look at the first half &#40;up to section 3.1&#41; of:  </p>
+<p>Baydin, A. G., Pearlmutter, B. A., Radul, A. A., &amp; Siskind, J. M. &#40;2018&#41;. Automatic differentiation in machine learning: a survey. Journal of machine learning research, 18.  </p>
+<p><a href="https://www.jmlr.org/papers/volume18/17-468/17-468.pdf">https://www.jmlr.org/papers/volume18/17-468/17-468.pdf</a></p></div>
+<h2 id="introduction">Introduction</h2>
+<p>Automatic differentiation &#40;autodiff&#41; reminds me of Arthur C. Clarke&#39;s quote &quot;any sufficiently advanced technology is indistinguishable from magic&quot;. Whereas computer based symbolic and numerical  differentiation seem like natural descendants from blackboard based calculus, the first time I learnt about autodiff &#40;through <a href="https://pytorch.org/">Pytorch</a>&#41; I was amazed. It is not that the ideas underlying autodiff themselves are particularly complex, indeed Bayin et al&#39;s look at the history of autodiff puts Wengert&#39;s 1964 paper entitled &quot;A simple automatic derivative evaluation program&quot; as a key moment in forward mode autodiff history. &#40;BTW the paper is only 2 pages long - well worth taking a look&#41;. For me the magic comes from autodiff being this digitally inspired look at something as &quot;ordinary&quot; but so important to scientific computing and AI as differentiation.</p>
+<h2 id="differentiation">Differentiation</h2>
+<p>If you are unsure of what the terms symbolic or numerical differentiation mean, I&#39;ll give a a quick overview below but would encourage you to read the paper and it&#39;s references for a more detailed exposition of their various  strengths and weaknesses. </p>
+<h3 id="numeric_differentiation_-_wiggle_the_input">Numeric differentiation - wiggle the input</h3>
+<p>For a function \(f\) with a 1D input and output describing numeric differentiation &#40;also known as the finite difference method&#41; comes quite naturally from the definition of the derivative. The derivative is</p>
+\[\frac{df}{dx} = \text{lim}_{h \rightarrow 0}\frac{f(x+h)-f(x)}{h}\]
+<p>so we approximate this expression by picking a small enough \(h\)  &#40;there are more complex schemes&#41;.  There are two sources of error here, the first is from approximating the infinitesimally small \(h\) with a plain finitely small \(h\) &#40;<em>truncation error</em>&#41; and the second is from <em>round-off error</em>.  Round-off error occurs because not every number is represented in the set of floating point numbers so for a small \(h\) the difference \(f(x+h)-f(x)\) can be quite unstable. Unfortunately these two source of error play against each other &#40;see graph - on the left hand size round-off error dominates whereas on the right hand side truncation error dominates&#41;.</p>
+<pre><code class="language-julia">using Plots
+plotlyjs&#40;&#41;
+h &#61; 10 .^ range&#40;-15, -3, length&#61;1000&#41;
+x0 &#61; 0.2
+f&#40;x&#41; &#61; &#40;64*x*&#40;1-x&#41;*&#40;1-2*x&#41;^2&#41;*&#40;1-8*x&#43;8*x^2&#41;^2
+df &#61; &#40;f.&#40;x0 .&#43; h&#41; .- f&#40;x0&#41;&#41; ./ h
+plot&#40;log10.&#40;h&#41;,log10.&#40;abs.&#40;&#40;df .- 9.0660864&#41;&#41;&#41;,
+xlabel&#61;&quot;log10&#40;h&#41;&quot;,ylabel&#61;&quot;log10&#40;|Error|&#41;&quot;,legend&#61;false&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/autodiff-forward/code/output/finite.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>However, such small errors are actually not all that important in machine learning&#33; The main issue with numeric differentiation for machine learning is that the number of required evaluations of our function \(f\) scales linearly with the number of dimension of the gradient. In contrast backpropagation &#40;an autodiff method&#41; can calculate the  derivatives in &quot;two&quot; evaluations of our function &#40;one forward, one back&#41;. </p>
+<h3 id="symbolic_-_fancy_lookup_tables">Symbolic - fancy lookup tables</h3>
+<p>Symbolic differentiation is differentiation as you learnt it in school programmed into software, all the rules \(\frac{d}{dx}\text{cos}(x) = -\text{sin}(x), \frac{d}{dx} x^p = px^{(p-1)}, \frac{d}{dx}f(g(x)) = f'(g(x))g'(x)\) etc... are known and utilised by the software. If you evaluate the derivative of a  function <code>f</code> using a symbolic programming language <code>dfdx &#61; derivative&#40;f,x&#41;</code> the object returned <code>dfdx</code> is just whatever function the symbolic program matches as the derivative of <code>f</code> using it&#39;s internal derivative lookup and application of the rules of differentiation &#40;chain rule etc&#41;. <strong>It is manipulation of expressions</strong>.  The main issue with symbolic differentiation for ML &#40;which anyone who has used Mathematica for a help with a difficult problem can attest to&#41; is expression swell, where the derivative expression is exponentially longer than the original expression and involves repeated calculations.</p>
+<h3 id="automatic_differentiation_-_alter_the_program">Automatic differentiation - alter the program</h3>
+<p>Autodiff is the augmentation of a computer program to perform standard computations along with <strong>calculation of derivatives</strong>, there is no manipulation of expressions. It takes advantage of the fact that derivative expressions can be broken down into  elementary operations that can be combined to give the derivative of the overall  expression. I&#39;ll be more clear about elementary operations soon but you can think of an elementary operations as being any operation you could give to a node on a computational graph of your program.</p>
+<h2 id="forward_mode">Forward mode</h2>
+<p>To be more concrete about autodiff, let&#39;s look at forward mode. Consider evaluating \(f(x_1,x_2) = x_1 x_2 + \text{log}(x_1 ^2)\). We break this into the computational graph below and associate with each elementary operation the intermediate variable \(\dot{v}_i = \frac{\partial v_i}{\partial x}\), called the &quot;tangent&quot;. The final &quot;tangent&quot; value \(\dot{v}_5\), which has been calculated as the function evaluates at the input &#40;3,5&#41; is a derivative at the point &#40;3,5&#41;. What derivative exactly depends on the initial values of \(\dot{x_1}\) and \(\dot{x_2}\). </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/autodiff-forward-20210426/example.png" style="padding:0; width:150%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h2 id="sketching_a_forward_mode_autodiff_library">Sketching a forward mode autodiff library</h2>
+<p>It&#39;s surprisingly easy to implement forward mode autodiff in <a href="http://www.julialang.org">Julia</a> &#40;at least a naive form&#41;. Below I create a forward model module that creates a new object <code>Dual</code> that is a type of <code>Number</code>, and then proceed to overload common mathematical functions &#40;e.g. <code>sin</code> and <code>*</code>&#41; to account for this new number type. Each instance of <code>Dual</code> with have a <code>p</code>rime and <code>t</code>angent slot. If we want the derivative with respect to argument <code>x₁</code> of the function <code>y &#61; f&#40;x₁,x₂&#41;</code>  we simply set <code>x₁.t &#61; 1.0</code> &#40;leaving <code>x₂.t &#61; 0.0</code>&#41; and check the value of <code>y.t</code>. For more see <a href="https://www.youtube.com/watch?v&#61;vAp6nUMrKYg&amp;t&#61;363s">this video</a> from MIT&#39;s Alan Edelman</p>
+<pre><code class="language-julia">import Base: &#43;,-,/,*,^,sin,cos,exp,log,convert,promote_rule,printlnstruct Dual &lt;: Number
+  p::Number # prime
+  t::Number # tangent
+end&#43;&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p &#43; y.p, x.t &#43; y.t&#41;-&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p - y.p, x.t - y.t&#41;/&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p/y.p, &#40;x.t*y.p - x.p*y.t&#41;/x.p^2&#41;*&#40;x::Dual,y::Dual&#41; &#61; Dual&#40;x.p*y.p, x.t*y.p &#43; x.p*y.t&#41;sin&#40;x::Dual&#41; &#61; Dual&#40;sin&#40;x.p&#41;, cos&#40;x.p&#41; * x.t&#41;cos&#40;x::Dual&#41; &#61; Dual&#40;cos&#40;x.p&#41;, -sin&#40;x.p&#41; * x.t&#41;exp&#40;x::Dual&#41; &#61; Dual&#40;exp&#40;x.p&#41;, exp&#40;x.p&#41; * x.t&#41;log&#40;x::Dual&#41; &#61; Dual&#40;log&#40;x.p&#41;, &#40;1/x.p&#41; * x.t&#41;^&#40;x::Dual,p::Int&#41; &#61; Dual&#40;x.p^p,p*x.p^&#40;p-1&#41;* x.t&#41;# We can think of dual numbers analogously to complex numbers
+# The epsilon term will be the derivative
+println&#40;x::Dual&#41; &#61; println&#40;x.p,&quot; &#43; &quot;,x.t,&quot;ϵ&quot;&#41;# deal with conversion, and Dual with non-Dual math
+convert&#40;::Type&#123;Dual&#125;, x::Number&#41; &#61; Dual&#40;&#40;x,zero&#40;x&#41;&#41;&#41;
+promote_rule&#40;::Type&#123;Dual&#125;,::Type&#123;&lt;:Number&#125;&#41; &#61; Dual;</code></pre>
+<p>Lets test on our example \(f(x_1,x_2) = x_1 x_2 + \text{log}(x_1 ^2)\), the derivative at &#40;3,5&#41; should be \(5 \frac{2}{3}\).</p>
+<pre><code class="language-julia">x1 &#61; Dual&#40;3.0,1.0&#41;
+x2 &#61; Dual&#40;5.0,0.0&#41;
+f&#40;x1,x2&#41; &#61; x1*x2 &#43; log&#40;x1^2&#41;
+y &#61; f&#40;x1,x2&#41;
+# df/dx1
+println&#40;y.t&#41;
+# direct calculation
+println&#40;x2.p &#43; 2/x1.p&#41;</code></pre><pre><code class="plaintext code-output">5.666666666666667
+5.666666666666667
+</code></pre><h2 id="conclusion">Conclusion</h2>
+<p>Autodiff is important in machine learning and scientific computing and &#40;forward mode&#41; surprisingly easy to implement. I&#39;ll look at reverse mode autodiff in another post. </p>
+<p>Thanks to Oscar Perez Concha who helped with discussions on the content of this post.  </p>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Thu, 01 Apr 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>

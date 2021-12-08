@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  {{fd2rss website_title}}  ]]>
+    </title>
+    <link> {{website_url}} </link>
+    <description>
+      <![CDATA[  {{fd2rss website_description}}  ]]>
+    </description>
+    <atom:link
+      href="{{fd_rss_feed_url}}"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  Gaussian processes and linear regression  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/gp-linear/index.html </link>
+  <guid> https://oizin.github.io/posts/gp-linear/index.html </guid>
+  <description>
+    <![CDATA[  Relating Gaussian processes to linear regression.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="gaussian_processes_and_linear_regression">Gaussian processes and linear regression</h1>
+<p>Oisín Fitzgerald, May 2021</p>
+<div class="boxed"><p>A look at section 6.4 of: </p>
+<p>Bishop C.M. &#40;2006&#41;. Pattern recognition and machine learning. Springer.</p>
+<p><a href="https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/">https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/</a></p>
+<p>Basically this post goes through &#40;Bayesian&#41; linear regression from a Gaussian process space point of view with some example <a href="https://julialang.org/">Julia</a> code to make things concrete.</p>
+<p>Update &#40;10/11/2021&#41;: Deleted &quot;estimating the hyperparameters&quot; section for now as it was too short and had no examples.</p></div>
+<h2 id="overview">Overview</h2>
+<p>The dominant approach to solving regression problems in machine learning today is finding the parameters \(w\) of a model \(M_w\) that minimise a loss function \(L\) by optimally combining a set of basis vectors. These basis vectors can be the original data \(x_n\) or some transformation \(z_n = \phi(x_n)\) where \((y_n,x_n)\) is the \(n^{th}\) output-input pair \(n \in \{1,...,N\}\) and \(x_n\) is length \(p\) &#40;the number of features&#41;. For example: </p>
+<ul>
+<li><p>Linear regression: find the best set of weights \(w\) that minimise mean square error \(\left\Vert Y - X w \right\Vert\) giving us predictions \(y_n = w^t x_n\). </p>
+</li>
+<li><p>Deep learning: at the other extreme of complexity we can think of deep learning as learning both the basis vectors and the weights. In a network with \(L\) layers the outputs and weights of the final layer are \(z_L\) and \(w_L\) giving us \(y_n =  w_L^t z_L(x_n)\). </p>
+</li>
+</ul>
+<p>With Gaussian processes with are going to switch from thinking in terms of locating which parameters are most likely to have generated the data to considering the data a finite sample from a function that has particular properties. The parameters and function space viewpoint are not conflicting, for example for linear regression:   </p>
+<ol>
+<li><p>Parameter space view: \(y\) is a combination of basis functions with the weights being from a mltivariate normal distribution. </p>
+</li>
+<li><p>Function space view: \(y(x_n)\) is a sample from a family of functions where any finite sample of points \(\{y_1,...,y_N\}\) follow a multivariate normal distibution. </p>
+</li>
+</ol>
+<h2 id="from_the_parameter_to_function_space_view">From the parameter to function space view</h2>
+<p>To fully see the connection let&#39;s go from the parameter space view to the function space view for linear regression. The model is </p>
+\[y(x_n) = w^t x_n\]
+<p>In matrix form the above is written as \(Y = X w\), with each row of the \(N \times p\) matrix \(X\) made up of the \(N\) individual observations \(x^t_n\), each a vector of length \(p+1\), the number of features plus one &#40;to have an intercept term&#41;. The prior distribution on our weights \(w\) reflects a lack of knowledge about the process</p>
+\[w \sim N(0,\alpha^{-1}I)\]
+<p>For example if there is one input we have \(w = (w_0, w_1)^t\) and setting \(\alpha = 1.0\) &#40;arbitrarily&#41; the prior looks like the graph below.</p>
+<pre><code class="language-julia">using Plots, Random, Distributions, LinearAlgebra
+plotlyjs&#40;&#41;
+Random.seed&#33;&#40;1&#41;
+α &#61; 1.0
+d &#61; MvNormal&#40;&#91;0,0&#93;, &#40;1/α&#41;*I&#41;
+W0 &#61; range&#40;-1, 1, length&#61;100&#41;
+W1 &#61; range&#40;-1, 1, length&#61;100&#41;
+p_w &#61; &#91;pdf&#40;d, &#91;w0,w1&#93;&#41; for w0 in W0, w1 in W1&#93;
+contourf&#40;W0, W1, p_w, color&#61;:viridis,xlab&#61;&quot;w0&quot;,ylab&#61;&quot;w1&quot;,title&#61;&quot;Prior: weight space&quot;&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig1.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>Since we treat input features &#40;the x&#39;s&#41; as constants this implies a prior distribution for the output </p>
+\[y \sim N(0,\alpha X^t X)\]
+<p>From the function space view we can randomly sample functions at finite spacings \(\mathfrak{X} = \{x_1,...,x_N\}\) from the prior.</p>
+<pre><code class="language-julia">Random.seed&#33;&#40;1&#41;
+x1 &#61; range&#40;-1, 1, length&#61;100&#41;
+X &#61; &#91;repeat&#40;&#91;1&#93;,100&#41; x1&#93;
+d &#61; MvNormal&#40;repeat&#40;&#91;0&#93;,100&#41;, &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; 1e-10*I&#41;
+p &#61; plot&#40;x1,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line,title&#61;&quot;Prior: function space&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;
+for i in 1:20
+    plot&#33;&#40;p,x1,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line&#41;
+end</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig2.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>The matrix \(K = \text{cov}(y) = \alpha^{-1} X^t X\) is made up of elements \(K_{nm} = k(x_n,x_m) = \frac{1}{\alpha}x_n^t x_m\) with \(k(x,x')\) the kernel function. Notice that the kernel function \(k(x,x')\) returns the variance for \(x = x'\) and covariance between \(x\) and \(x'\) otherwise. Also that we are talking here about the covariance between <em>observations</em>, not features. \(K\) is a \(N \times N\) matrix and so can be quite large. There are many potential kernel functions other than \(k = x^tx\) but that&#39;s for another day.   </p>
+<h2 id="modelling_data_with_straight_lines">Modelling data with straight lines</h2>
+<p>We have a prior on \(y\) and then we observe some data. Let assume there is noise in the data so we observe </p>
+\[t_n = y(x_n) + \epsilon_n\]
+<p>with \(\epsilon_n \sim N(0,\beta)\) random noise that is independent between observations and \(t = \{t_1,...,t_N\}\) the observed output values for input features \(x_n\). </p>
+<pre><code class="language-julia">Random.seed&#33;&#40;1&#41;
+n &#61; 10
+x1 &#61; range&#40;-1, 1, length&#61;n&#41;
+X &#61; &#91;repeat&#40;&#91;1&#93;,n&#41; x1&#93;
+β &#61; 0.01
+d &#61; MvNormal&#40;repeat&#40;&#91;0&#93;,n&#41;, &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; β*I&#41;
+y &#61; rand&#40;d&#41; 
+p &#61; scatter&#40;x1,y,legend&#61;false,title&#61;&quot;Observed data&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig3.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p>At this point in practise we could estimate the noise parameter \(\beta\), but lets come back to that. For now assume we know that \(\beta = 0.01\). It is worth remember there are no weights giving us the intercept, slope etc but we can  sample from our distribution of \(y|t\) or \(t*|t\) or given the observed data. Because our interest is in predicting for new observations we&#39;d like to estimate the posterior \(p(t*|t,x,x*)\) for any future input \(x*\). It turns out the posterior for for any \(t*\) is another normal distribution which is coded below. </p>
+<pre><code class="language-julia">p &#61; scatter&#40;x1,y,legend&#61;false,
+            title&#61;&quot;Posterior: function space&quot;,xlabel&#61;&quot;x&quot;,ylabel&#61;&quot;y&quot;&#41;# new X&#39;s over which to predict
+xs &#61; range&#40;-1, 1, length&#61;100&#41;
+Xs &#61; &#91;repeat&#40;&#91;1&#93;,100&#41; xs&#93;
+ys &#61; zeros&#40;100&#41;# get ready to construct posterior
+σ2 &#61; zeros&#40;100&#41;
+C &#61; &#40;1/α&#41;*X*transpose&#40;X&#41; &#43; β*I
+Cinv &#61; inv&#40;C&#41;# one prediction at a time 
+for i in 1:100
+    k &#61; X * Xs&#91;i,:&#93;
+    c &#61; Xs&#91;i,:&#93;&#39; * Xs&#91;i,:&#93; &#43; β
+    ys&#91;i&#93; &#61; &#40;k&#39; * Cinv&#41; * y
+    σ2&#91;i&#93; &#61; c - &#40;k&#39; * Cinv&#41; * k
+end
+plot&#33;&#40;p,xs,ys, ribbon&#61;&#40;2*sqrt.&#40;σ2&#41;,2*sqrt.&#40;σ2&#41;&#41;, lab&#61;&quot;estimate&quot;&#41;
+plot&#33;&#40;p,xs,ys&#41;# noise free samples from the posterior
+# all predictions at once
+m &#61; &#40;Xs * X&#39;&#41; * Cinv * y
+CV &#61; &#40;Xs * Xs&#39;&#41; - &#40;Xs * X&#39;&#41; * Cinv * &#40;X * Xs&#39;&#41;
+CV &#61; Symmetric&#40;CV&#41; &#43; 1e-10*I
+d &#61; MvNormal&#40;m, Symmetric&#40;CV&#41; &#43; 1e-10*I&#41;
+for i in 1:20
+    plot&#33;&#40;p,xs,rand&#40;d&#41;,legend&#61;false,seriestype&#61;:line&#41;
+end</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/posts/gp-linear/code/output/fig4.svg" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure> ]]>
+  </content:encoded>
+    
+  <pubDate>Sat, 01 May 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>

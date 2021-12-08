@@ -1,0 +1,696 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  {{fd2rss website_title}}  ]]>
+    </title>
+    <link> {{website_url}} </link>
+    <description>
+      <![CDATA[  {{fd2rss website_description}}  ]]>
+    </description>
+    <atom:link
+      href="{{fd_rss_feed_url}}"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  ARCH models  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/bitcoin-volatility/index.html </link>
+  <guid> https://oizin.github.io/posts/bitcoin-volatility/index.html </guid>
+  <description>
+    <![CDATA[  An quick overview of volatility modelling with ARCH models  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="bitcoin_price_volatility_with_arch_models">Bitcoin price volatility with ARCH models</h1>
+<p>Oisín Fitzgerald, March 2021</p>
+<div class="boxed">I wrote this post to remind myself of the basic strategies behind how &#40;financial&#41; time series are analysed and how volatility models work. In particular I examine the ARCH model. Don&#39;t take the attempt to forecast the distributions of Bitcoin / US dollar price movements seriously - I would bet precisely &#36;0 on this model. I hope to do a more detailed post on how to evaluate forecasts in the future.</div>
+<h2 id="introduction">Introduction </h2>
+<p>It&#39;s January 2021 and Bitcoin price have been breaking all time highs. In this context I wanted to explore statistical methods for estimating and forecasting volatility, in particular autoregressive conditional heteroscedasticity &#40;ARCH&#41; models. Volatility is variation around the mean return of a financial asset. Low volatility implies prices are bunched near the mean while high volatility implies large swings in prices. It is considered a measure of investment risk. For example, we may be convinced Bitcoin will continue to rise in value over the short term but reluctant to engage in speculation if there is significant volatility reducing our chances of being able to buy in and sell at &quot;good&quot; prices &#40;even if there a upward trend&#41;. I&#39;ll add I&#39;m not an expert on financial markets, and that models and graphs below are coded in R.</p>
+<pre><code class="language-r"># packages
+library&#40;data.table&#41;
+library&#40;ggplot2&#41;</code></pre>
+<pre><code class="language-r"># read in data
+# Source: https://www.kaggle.com/mczielinski/bitcoin-historical-data
+dt_daily_close &lt;- fread&#40;&quot;./bitcoin-daily-close-2012-2020.csv&quot;&#41;</code></pre>
+<h2 id="bitcoin_bull_markets">Bitcoin bull markets</h2>
+<p>To say the Bitcoin &#40;BTC&#41; price has been going up recently was probably an understatement, the price has gone up more 100&#37; since the beginning of 2020&#33; Although if we compare with previous bull market in late 2017 where the price went up more than 1000&#37; it is not a unique occurrence in Bitcoin&#39;s history. Indeed, looking at the graph of Bitcoin on a log scale below we see that the recent &#40;relative&#41; growth rate is comparatively low in Bitcoin&#39;s history.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-3-1.png" style="padding:0; width:100%" alt=" Figure 1. Bitcoin daily closing prices (2012 to 2020)"/>
+<figcaption> Figure 1. Bitcoin daily closing prices (2012 to 2020)</figcaption>
+</figure><h2 id="financial_time_series_basics">Financial time series basics</h2>
+<p>It is common in the statistical analysis of financial time series to transform the asset price in order to achieve something closer to a series of independent increments &#40;<a href="https://en.wikipedia.org/wiki/Random_walk">a random walk</a>&#41;. If \(B_t\) is the Bitcoin price on day \(t\), the daily &quot;log return&quot; is \(Z_t = log(B_t) - log(B_{t-1})\). Using the log differences might seem rather arbitrary at first but it can justified as 1&#41; making a multiplicative process additive and 2&#41; interpretable as the percentage change in asset value. If \(r_t\) is the return at time \(t \in {1,2,...,T}\) for a starting asset value of \(W_0\) then \(W_T = W_0\prod_{t=1}^T(1+r_t)\). Taking logarithms gives</p>
+\[\begin{aligned}
+log(W_T) &= log(W_0) + \sum_{t=1}^T log(1+r_t) \\
+ &= \underbrace{log(W_0) + \sum_{t=1}^{T-1} log(1+r_t)}_{log(W_{T-1})} + log(1+r_T) \\
+log(1+r_T) &= log(W_T) - log(W_{T-1})\\
+\end{aligned}\]
+<p>Further for small \(r_t\) the percentage price is approximately equal to the log return, i.e. \(log \approx x\). So the <a href="https://en.wikipedia.org/wiki/Random_walk_hypothesis">random-walk hypothesis</a> hopes that the relative price changes are close to an independent process.</p>
+<pre><code class="language-r">dt_daily_ret &lt;- dt_daily_close&#91;,.&#40;return &#61; diff&#40;log&#40;Close&#41;&#41;&#41;&#93;
+dt_daily_ret&#91;,date :&#61; dt_daily_close&#36;date&#91;-1&#93;&#93;</code></pre>
+<p>We can see in the plot below that \(Z_t\) appears to be a zero mean process. However, comparing it to a simulated white noise process we see much greater variation in the magnitude of deviations from the the mean. The Bitcoin returns also exhibit clustering in their variance over time. These are characteristics the ARCH model was designed to account for.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-5-1.png" style="padding:0; width:100%" alt=" Figure 2. Bitcoin daily returns compared to white noise"/>
+<figcaption> Figure 2. Bitcoin daily returns compared to white noise</figcaption>
+</figure><p>An alternative way to look at a times series is plots of the autocorrelation function &#40;ACF&#41; and partial autocorrelation function &#40;PACF&#41;. The ACF graphs the correlation between observations at time \(Z_t\) and \(Z_{t-h}\) for various values of \(h\). Since we average over \(t\) we are assuming that the series is <a href="https://en.wikipedia.org/wiki/Stationary_process">stationary</a> - intuitively that it&#39;s statistical properties don&#39;t depend on \(t\).  The PACF graphs the correlation between \(Z_t\) and \(Z_{t-h}\) with all intermediate values \(Z_{t-1},Z_{t-2},...,Z_{t-h+1}\) regressed out. Below are ACF and PACF graphs of the series \({Z_t}\) and \({Z_t^2}\). While \(Z_t\) appears to have relatively weak patterns the ACF and PACF of the \(Z_t^2\) process demonstrates clear dependence in the process variance. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-6-1.png" style="padding:0; width:100%" alt=" Figure 3. Autocorrelation function of Bitcoin daily returns and squared returns"/>
+<figcaption> Figure 3. Autocorrelation function of Bitcoin daily returns and squared returns</figcaption>
+</figure><p>A formal test of independence of a time-series, the Ljung–Box test, strongly rejects independence in \(Z_t^2\) with a small p-value. We also reject independence of the \(Z_t\) increments but this is much weaker signal.</p>
+<pre><code class="language-r"># test of Z_t
+Box.test&#40;dt_daily_ret&#36;return,type &#61; &quot;Ljung-Box&quot;&#41;</code></pre>
+<pre><code class="language-julia">## 
+## 	Box-Ljung test
+## 
+## data:  dt_daily_ret&#36;return
+## X-squared &#61; 5.9396, df &#61; 1, p-value &#61; 0.0148</code></pre>
+<pre><code class="language-r"># test of Z_t^2
+Box.test&#40;dt_daily_ret&#36;return^2,type &#61; &quot;Ljung-Box&quot;&#41;</code></pre>
+<pre><code class="language-julia">## 
+## 	Box-Ljung test
+## 
+## data:  dt_daily_ret&#36;return^2
+## X-squared &#61; 399.32, df &#61; 1, p-value &lt; 2.2e-16</code></pre>
+<h2 id="autoregressive_conditional_heteroscedasticity_models">Autoregressive conditional heteroscedasticity models</h2>
+<p>Autoregressive conditional heteroscedasticity &#40;ARCH&#41; models, developed by Robert Engle in 1982, were designed to account for processes in which the variance of the return fluctuates. ARCH processes exhibit the time varying variance and volatility clustering seen in the graph of Bitcoin returns above. An ARCH&#40;p&#41; series is generated as \(X_t = \sqrt h_t e_t\), with \(h_t = \alpha_0 + \sum \alpha_i X_{t-i}^2\) and \(e_t \sim N(0,1)\). There have been extensions to the model since 1982 with generalised ARCH &#40;GARCH&#41; and it&#39;s various flavours &#40;IGARCH, EGARCH, ...&#41; which allow more complex patterns such as somewhat &quot;stickier&quot; volatility clustering.</p>
+<p>I always like to try and understand how a model works by either simulating form it &#40;for statistical models&#41; or using simulated data to understand it&#39;s performance &#40;for machine learning models&#41;. Lets simulate some examples of an ARCH&#40;1&#41; process to get an idea of how the simplest version of the process works.</p>
+<pre><code class="language-r">simulate_arch1 &lt;- function&#40;a0,a1,n&#61;1000L&#41; &#123;
+  # function to simulate an ARCH&#40;1&#41; series
+  # a0: ARCH constant
+  # a1: ARCH AR term
+  # n: length of time series
+  xt &lt;- numeric&#40;length &#61; n&#43;1&#41;
+  ee &lt;- rnorm&#40;n&#43;1&#41;  
+  xt&#91;1&#93; &lt;- ee&#91;1&#93;
+  for &#40;i in 2:&#40;n&#43;1&#41;&#41; &#123;
+    ht &lt;- a0 &#43; a1*xt&#91;i-1&#93;^2
+    xt&#91;i&#93; &lt;- ee&#91;i&#93;*sqrt&#40;ht&#41;
+  &#125;
+  xt&#91;2:&#40;n&#43;1&#41;&#93;
+&#125;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-10-1.png" style="padding:0; width:100%" alt=" Figure 4. Simulated ARCH(1) processes"/>
+<figcaption> Figure 4. Simulated ARCH(1) processes</figcaption>
+</figure>
+<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-11-1.png" style="padding:0; width:100%" alt=" Figure 5. ACF and PACF for simulated ARCH(1) processes"/>
+<figcaption> Figure 5. ACF and PACF for simulated ARCH(1) processes</figcaption>
+</figure><p>It is worth remembering that ARCH models are for the volatility, we can also have usual trends, or additional ARIMA components. For example, let&#39;s simulate an AR&#40;1&#41; model with ARCH&#40;1&#41; volatility, \(X_t = u_0 X_{t-1} + \sqrt h_t e_t\). The plots of the ACF and PACF for this series shows similar correlation patterns for both \({X_t}\) and \({X_t^2}\).</p>
+<pre><code class="language-r">simulate_ar1_arch1 &lt;- function&#40;u0,a0,a1,n&#61;1000L&#41; &#123;
+  # function to simulate AR&#40;1&#41; &#43; ARCH&#40;1&#41; series
+  # u0: autoregressive term
+  # a0: ARCH constant
+  # a1: ARCH AR term
+  # n: length of time series
+  xt &lt;- numeric&#40;length &#61; n&#43;1&#41;
+  ee &lt;- rnorm&#40;n&#43;1&#41;  
+  xt&#91;1&#93; &lt;- ee&#91;1&#93;
+  for &#40;i in 2:&#40;n&#43;1&#41;&#41; &#123;
+    ht &lt;- a0 &#43; a1*xt&#91;i-1&#93;^2
+    xt&#91;i&#93; &lt;- u0*xt&#91;i-1&#93; &#43; ee&#91;i&#93;*sqrt&#40;ht&#41;
+  &#125;
+  xt&#91;2:&#40;n&#43;1&#41;&#93;
+&#125;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-13-1.png" style="padding:0; width:100%" alt=" Figure 6. Simulated AR(1) + ARCH(1) processes"/>
+<figcaption> Figure 6. Simulated AR(1) + ARCH(1) processes</figcaption>
+</figure>
+<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-14-1.png" style="padding:0; width:100%" alt=" Figure 7. ACF and PACF for simulated AR(1) + ARCH(1) processes"/>
+<figcaption> Figure 7. ACF and PACF for simulated AR(1) + ARCH(1) processes</figcaption>
+</figure><h2 id="modelling_bitcoin_volatility">Modelling Bitcoin volatility</h2>
+<p>Now that we&#39;ve got an idea of how ARCH models work let&#39;s move onto modeling Bitcoin returns. We&#39;ll use the R package <code>fGarch</code> which estimates the model parameters using Quasi-Maximum Likelihood Estimation. I picked an ARCH&#40;2&#41; model based on a quick comparison of model fit statistics for different values of the heteroscedasdicity order. The <code>garchFit</code> function prints a lot to the console which you can suppress with <code>trace &#61; FALSE</code>.</p>
+<pre><code class="language-r"># fit an ARCH&#40;2&#41; model to Bitcoin returns
+library&#40;fGarch&#41;
+m1 &lt;- garchFit&#40;~arma&#40;0,0&#41;&#43;garch&#40;2,0&#41;,dt_daily_ret&#36;return,trace&#61;FALSE&#41;
+summary&#40;m1&#41;</code></pre>
+<pre><code class="language-julia">## 
+## Title:
+##  GARCH Modelling 
+## 
+## Call:
+##  garchFit&#40;formula &#61; ~arma&#40;0, 0&#41; &#43; garch&#40;2, 0&#41;, data &#61; dt_daily_ret&#36;return, 
+##     trace &#61; FALSE&#41; 
+## 
+## Mean and Variance Equation:
+##  data ~ arma&#40;0, 0&#41; &#43; garch&#40;2, 0&#41;
+## &lt;environment: 0x000001fe0a5c4c30&gt;
+##  &#91;data &#61; dt_daily_ret&#36;return&#93;
+## 
+## Conditional Distribution:
+##  norm 
+## 
+## Coefficient&#40;s&#41;:
+##        mu      omega     alpha1     alpha2  
+## 0.0026455  0.0010569  0.2509526  0.2539785  
+## 
+## Std. Errors:
+##  based on Hessian 
+## 
+## Error Analysis:
+##         Estimate  Std. Error  t value Pr&#40;&gt;|t|&#41;    
+## mu     2.645e-03   6.524e-04    4.055 5.02e-05 ***
+## omega  1.057e-03   3.843e-05   27.502  &lt; 2e-16 ***
+## alpha1 2.510e-01   2.827e-02    8.878  &lt; 2e-16 ***
+## alpha2 2.540e-01   3.296e-02    7.705 1.31e-14 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Log Likelihood:
+##  5898.152    normalized:  1.796027 
+## 
+## Description:
+##  Thu Jan 21 10:57:27 2021 by user: z5110862 
+## 
+## 
+## Standardised Residuals Tests:
+##                                 Statistic p-Value     
+##  Jarque-Bera Test   R    Chi^2  58727.98  0           
+##  Shapiro-Wilk Test  R    W      0.8800886 0           
+##  Ljung-Box Test     R    Q&#40;10&#41;  26.3782   0.003263477 
+##  Ljung-Box Test     R    Q&#40;15&#41;  39.05692  0.000628423 
+##  Ljung-Box Test     R    Q&#40;20&#41;  49.41108  0.0002687736
+##  Ljung-Box Test     R^2  Q&#40;10&#41;  14.15045  0.1662389   
+##  Ljung-Box Test     R^2  Q&#40;15&#41;  18.71158  0.2271022   
+##  Ljung-Box Test     R^2  Q&#40;20&#41;  20.63017  0.4191803   
+##  LM Arch Test       R    TR^2   15.36755  0.2219489   
+## 
+## Information Criterion Statistics:
+##       AIC       BIC       SIC      HQIC 
+## -3.589618 -3.582192 -3.589621 -3.586959</code></pre>
+<p>Calling <code>summary</code> on the resulting model object returns estimates of the model parameters and Ljung–Box statistics for the residuals and squared residuals. The model returned is \(Z_t = 0.00265 + \sqrt h_t e_t\) with \(h_t = 0.001 + 0.251 Z_{t-1}^2 + 0.254 Z_{t-2}^2\). Notice that the Ljung-Box test is significant for the residuals but not squared residuals. The p in <code>Q&#40;p&#41;</code> of the Ljung-Box test results indicates the extent of the autocorrelation lag used in testing for independence of the residuals. So there is evidence of unaccounted for correlation in the data when considering lags up to 15 and 20. However, the ACF and partial ACF  suggest that the remaining auto correlation is somewhat complex and weak enough to ignore for the purposes of illustrating basic volatility forecasting with ARCH model. </p>
+<h2 id="rolling_probabilitic_forecast">Rolling probabilitic forecast</h2>
+<p>One use of such a model may be to forecast the one day ahead distribution of returns. Our forecasts are of the form \(Z_{t+1} \sim N(0,\hat{\alpha}_0 + \hat{\alpha}_1 Z_{t-1}^2 + \hat{\alpha}_2 Z_{t-2}^2)\). These forecasted distributions can be used to assess the probability of price movements of a particular size. Since we might believe the parameters of the model are not constant I&#39;ll use a rolling forecast window of 300&#43;1 days. So starting at day 301 &#40;2012-10-26&#41; until the final day 3,285 &#40;2020-12-31&#41; I&#39;ll fit an ARCH&#40;2&#41; model to the previous 300 days and forecast forward one day. We can see in the results that there is considerable room for improvement, the model fails to capture many of the large price movements, but that it is not producing complete nonsense either. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-17-1.png" style="padding:0; width:100%" alt=" Figure 8. The red points are outside the 95% forecast intervals"/>
+<figcaption> Figure 8. The red points are outside the 95% forecast intervals</figcaption>
+</figure><h2 id="assessing_the_forecasts">Assessing the forecasts</h2>
+<p>A more thorough evaluation of the forecasts involves assessing their calibration and dispersion &#40;I won&#39;t go into details on this aspect, see for example Gneiting and Katzfuss &#40;2014&#41;&#41;. From the graphs below we see that our forecasts are poorly calibrated - the forecasted probabilities of price movement are not reliable. They are likely to over estimate the probability of a large price movement &#40;overdispersion&#41;. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-18-1.png" style="padding:0; width:100%" alt=" Figure 9. Assessment of calibration"/>
+<figcaption> Figure 9. Assessment of calibration</figcaption>
+</figure><p>We might wonder whether the poor performance came about due to the large drop in March 2020 influencing future predictions. However, this doesn&#39;t appear to be the case. The prediction strategy I used is simply not good&#33; </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/bitcoin-volatility-20210118/unnamed-chunk-19-1.png" style="padding:0; width:100%" alt=" Figure 10. Assessment of calibration (pre March 2020)"/>
+<figcaption> Figure 10. Assessment of calibration (pre March 2020)</figcaption>
+</figure><h2 id="thats_all">That&#39;s all&#33;</h2>
+<p>Thanks for reading. This was a relatively simplistic introduction to the use of ARCH models for forecasting volatility in the Bitcoin market. ARCH models allow the variance of time series at time \(t\) to depend on the variance of previous terms \({t-1,t-2,...}\), analogous to how autoregressive models. This allows us to forecast distributions of future prices in a manner that is more reflective of empirical observations of financial time series.   </p>
+<h2 id="reading_and_links">Reading and links</h2>
+<ul>
+<li><p>Gneiting, T., &amp; Katzfuss, M. &#40;2014&#41;. Probabilistic forecasting. Annual Review of Statistics and Its Application, 1, 125-151.  </p>
+</li>
+<li><p>Engle, R. F. &#40;1982&#41;. Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation. Econometrica: Journal of the Econometric Society, 987-1007.  </p>
+</li>
+<li><p>Bollerslev, T. &#40;1986&#41;. Generalized autoregressive conditional heteroskedasticity. Journal of econometrics, 31&#40;3&#41;, 307-327.  </p>
+</li>
+<li><p>Data source: https://www.kaggle.com/mczielinski/bitcoin-historical-data   </p>
+</li>
+<li><p>fGarch R package: https://cran.r-project.org/web/packages/fGarch/fGarch.pdf  </p>
+</li>
+</ul>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Mon, 01 Mar 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Causal Mediation  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/causal-mediation/index.html </link>
+  <guid> https://oizin.github.io/posts/causal-mediation/index.html </guid>
+  <description>
+    <![CDATA[  An introduction to causal mediation analysis in RCTs.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="causal_mediation_a_brief_overview">Causal Mediation: A Brief Overview</h1>
+<p>Oisín Fitzgerald, March 2021</p>
+<div class="boxed">I recently worked on the meta-analysis of a set of randomised control trials &#40;RCT&#41;, and as part of this carried out a series of causal mediation analyses. I&#39;d never thought about mediation in an RCT setting before. It was interesting to realise that even in a perfectly designed experiment with full randomisation of the treatment there is a need to think carefully about risk of confounding.</div>
+<h2 id="introduction">Introduction</h2>
+<p>As described by Judea Pearl causal mediation is an attempt to explain how nature works. It attempts to quantify the extent to which the effect of an action &#40;the treatment&#41; on a outcome of interest can be explained by a particular mechanism &#40;the mediator&#41;.  Of course, the extent to which we are &quot;explaining nature&quot; is necessarily limited by the data available. As an example exercise may reduce an individuals risk of dementia because it reduces blood pressure. A <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph</a> that encodes this structure is shown below. This graph says that exercise impacts risk of dementia <strong>indirectly</strong> through changes in blood pressure and also <strong>directly</strong>, possibly through some other unmeasured mechanism.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/mediation1.png" style="padding:0; width:100%" alt=" Example of mediation."/>
+<figcaption> Example of mediation.</figcaption>
+</figure><p>There are several effects of interest in a mediation analysis, relating to which pathway &#40;direct/indirect&#41; and node &#40;treatment/mediator&#41; we wish to consider intervening on and if we want to imagine keeping some aspect of the treatment fixed at a baseline/control level. Some notation, there are two treatment levels \(A \in \{0,1\}\) with an outcome \(Y\), and potential outcome \(Y(a)\), the outcome observed if we set \(A = a\). By consistency, in our observed data \(Y = Y(1)\) if \(A = 1\) and similarly for \(A = 0\). The mediator \(M\) also has potential outcomes \(M(0)\) and \(M(1)\). Within mediation analysis there is a second potential outcome \(Y(a,m)\) that arises if we consider setting both \(A\) and \(M\) to particular values. This potential outcome also allows us consider questions such as: what value would the outcome take if an individual is treated \(A=1\) but the treatment-mediator pathway is &quot;broken&quot; \(M=M(0)\) denoted as \(Y(1,M(0))\). Other variables will be denoted \(X\), \(Z\), ... as required. I generally assume some level of familiarity with causal inference, a good introduction is <a href="https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/">Hernan and Robin&#39;s book</a>. </p>
+<p>Some other examples of the type of questions for which causal mediation analysis is useful:  </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/mediation2.png" style="padding:0; width:100%" alt=" Three examples of mediation."/>
+<figcaption> Three examples of mediation.</figcaption>
+</figure><h2 id="quantities_of_interest">Quantities of interest </h2>
+<p>There are several quantities &#40;statistical/causal estimands&#41; of interest in a mediation analysis. The naming conventions are different depending on the literature I&#39;ve read and here I stick with Pearl &#40;2014&#41;.</p>
+<h3 id="total_effect">Total effect</h3>
+<p>The total effect is the change in the outcome if we flip the treatment switch and aren&#39;t concerned with the mechanism of action. It is the usual average treatment effect figure we might expect to see in the headline results of an RCT. We could collapse the graph below into \(A \rightarrow Y\).</p>
+\(\text{TE} = E(Y(1) - Y(0))\)<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/totaleffect.png" style="padding:0; width:100%" alt=" Total effect"/>
+<figcaption> Total effect</figcaption>
+</figure><h3 id="direct_effect">Direct effect</h3>
+<p>The natural direct effect is the effect of flipping the treatment switch if we imagine that the indirect pathway is no longer operational.</p>
+\(\text{DE} = E(Y(1,M(0)) - Y(0,M(0)))\)<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/directeffect.png" style="padding:0; width:100%" alt=" Direct effect"/>
+<figcaption> Direct effect</figcaption>
+</figure><h3 id="indirect_effect">Indirect effect</h3>
+<p>The natural direct effect &#40;or average mediated effect&#41; is the effect of flipping the treatment switch if we imagine that the direct pathway is no longer operational. </p>
+\(\text{IDE} = E(Y(0,M(1)) - Y(0,M(0)))\)<figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/indirecteffect.png" style="padding:0; width:100%" alt=" Indirect effect"/>
+<figcaption> Indirect effect</figcaption>
+</figure><p>Each of these effects may be useful for different purposes. For example, the total effect may guide immediate decision making and policy - if a treatment works and is immediately needed the mechanism of action is less important. The size of the indirect effect is useful information for considering alternative &#40;e.g. cheaper&#41; treatments that target the mediator. The value \(\text{IDE}/\text{TE}\) is considered the percentage of the total effect explained by the mediator.  </p>
+<h2 id="mediation_and_exchangeability">Mediation and exchangeability</h2>
+<p>One of the important considerations in any causal analysis is exchangeability/ignorability. Also referred to as unconfoundedness, we can think of exchangeability as meaning that individuals in either treatment arm are literally a-priori exchangeable or &quot;swappable&quot;, with the conditionaly exchangeability meaning that individuals are swappable within strata of a covariates X. We want our analysis to be comparable to a RCT, you could have ended up in either treatment arm. What exchangeability achieves is a lack of dependence between the treatment assignment and the potential outcome under that treatment \(Y(a) \perp A\). Otherwise you end up with flawed analysis. </p>
+<h3 id="a_more_detailed_example_if_you_want">A more detailed example &#40;if you want&#41;</h3>
+<p>For example, assume that in truth exercise \(A\) reduces risk of hospitalisations due to asthma \(Y\), and we wish in practise to investigate the link using survey of all asthmatics who have attended a clinic. However, only mild asthmatics do any exercise training &#40;\(A=1\)&#41; and already have fairly low risk of hospitalisations. So a naive analysis might find that exercise increases risk of hospitalisations. We have set up a scenario where our naive treatment estimator cannot equal the true treatment effect \(E(Y|A=1) - E(Y|A=0) \ne E(Y(1) - Y(0))\). Clearly severity of asthma \(X\) would be an important adjustment and we might be happy to consider treatment assigment random within levels of an asthma severity measure \(X\) leading to conditional exchangeability \(Y(a) \perp A | X = x\). </p>
+<h3 id="confounding_in_rcts">Confounding in RCTs</h3>
+<p>Now that we&#39;ve recapped exchangeability in general lets consider it for mediation. In particular I&#39;m going to talk about RCTs and so will assume the initial treatment \(A\) is fully randomised and unconfounded. An issue here is rather simply that we&#39;ve randomised only the treatment and not the mediator, and so any mediation analysis can still be confounded. For example, we could randomise exercise training to assess if that reduces asthma hospitalisations, with the potential mechanism of interest being a reduction in inflammation. However, maybe our study is in a district with poor industrial pollution controls. Some individuals in our study happen to live near a factory that is unbeknownst to them leaking a pollutant that raises lung inflammtion and increasing their our risk of asthma hospitalisation. As a result we have a partially confounded analysis, there is an unrecorded factor - proximity to the factory - that we won&#39;t account for in the analysis. What will happen then is that estimates of the indirect and direct effects will be biased away from the true effect. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/mediation3.png" style="padding:0; width:100%" alt=" Mediation with confounding"/>
+<figcaption> Mediation with confounding</figcaption>
+</figure><h2 id="simulations">Simulations </h2>
+<p>Let&#39;s investigate this issue around confounding and mediation analysis using some simple linear forms for our data generation process and models. Feel free to skim the maths, all that matters is that the effects of interest turn out to be coefficients we can easily extract from a linear model. </p>
+<h3 id="0_an_unconfounded_mediation_model">&#40;0&#41; An unconfounded mediation model</h3>
+<p>First lets clarify what we are attempting to estimate.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/mediationlinear.png" style="padding:0; width:100%" alt=" Linear mediation model (structural equation model): scenario 0"/>
+<figcaption> Linear mediation model (structural equation model): scenario 0</figcaption>
+</figure><p>Assuming no confounding in our generative model we can estimate the total, direct and indirect effects using estimators of the following quantities, for the total effect we have  </p>
+\[\begin{aligned}
+\text{TE} &= E(Y(1) - Y(0)) \\
+ &= E(Y|A=1) - E(Y|A=0) \\
+ &= \int_{\mathcal{M}} E(Y|M=m,A=1)p(M|A=1) - \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=0) \\ 
+ &= \gamma*E(M|A=1) + \beta - \gamma*E(M|A=0) \\
+ &= \gamma*\alpha + \beta
+\end{aligned}\]
+<p>And the direct effect we have</p>
+\[\begin{aligned}
+\text{DE} &= E(Y(1,M(0)) - Y(0,M(0))) \\
+ &= E(Y(1,M(0))) - E(Y(0,M(0))) \\ 
+ &= \int_{\mathcal{M}} E(Y|M=m,A=1)p(M|A=0) dm - \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=0) dm \\
+ &= \int_{\mathcal{M}} (\gamma*m + \beta) p(M|A=0) dm - \int_{\mathcal{M}} (\gamma*m) p(M|A=0) dm \\
+ &= \beta
+\end{aligned}\]
+<p>And the indirect effect we have  </p>
+\[\begin{aligned}
+\text{IDE} &= E(Y(0,M(1)) - Y(0,M(0))) \\
+ &= E(Y(0,M(1))) - E(Y(0,M(0))) \\ 
+ &= \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=1) dm - \int_{\mathcal{M}} E(Y|M=m,A=0)p(M|A=0) dm \\
+ &= \int_{\mathcal{M}} (\gamma*m) p(M|A=1) dm - \int_{\mathcal{M}} (\gamma*m) p(M|A=0) dm \\
+ &= \gamma * E(M|A=1) \\
+ &= \gamma * \alpha
+\end{aligned}\]
+<p>We&#39;ll estimate these coefficients using R&#39;s <code>lm</code> function. Obviously in reality we&#39;d need to worry about whether a linear model is the appropriate functional form for our analyses, see Pearl &#40;2014&#41; for details more general versions of these formulas. From the graph below we see that in the unconfounded case we have unbiased estimates of our parameters - as expected&#33; </p>
+<pre><code class="language-r">mediation_scen0 &lt;- function&#40;N,alpha,beta,gamma&#41; &#123;
+  A &lt;- rbinom&#40;N,1,0.5&#41;
+  M &lt;- alpha*A &#43; rnorm&#40;N&#41;
+  Y &lt;- beta*A &#43; gamma*M &#43; rnorm&#40;N&#41;
+  
+  alpha_ &lt;- mean&#40;M&#91;A&#61;&#61;1&#93;&#41; - mean&#40;M&#91;A&#61;&#61;0&#93;&#41;
+  mod &lt;- lm&#40;Y ~ A &#43; M&#41;
+  beta_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;A&quot;&#93;&#41;
+  gamma_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;M&quot;&#93;&#41;
+  tau_ &lt;-  mean&#40;Y&#91;A&#61;&#61;1&#93;&#41; - mean&#40;Y&#91;A&#61;&#61;0&#93;&#41;
+  
+  c&#40;&quot;total&quot; &#61; beta_ &#43; alpha_*gamma_,
+    &quot;direct&quot; &#61; beta_,
+    &quot;indirect&quot; &#61; alpha_*gamma_&#41;
+&#125;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-3-1.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h3 id="1_a_confounded_mediation_model">&#40;1&#41; A confounded mediation model</h3>
+<p>We now make M and Y to be shared caused of another variable \(U\). This results in biased estimates of the direct and indirect effect as seen in the graph below.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/mediationlinearconfounded.png" style="padding:0; width:100%" alt=" Linear mediation model with confounding (structural equation model): scenario 1"/>
+<figcaption> Linear mediation model with confounding (structural equation model): scenario 1</figcaption>
+</figure><p>In this case the our estimate of the indirect effect is biased, too high, i.e. generally \(\hat{\alpha}\hat{\gamma} > \alpha\gamma\) while the direct effect is too low. If \(U\) is &gt;0 &#40;&lt;0&#41; then both M and Y are more likely to take a higher &#40;lower&#41; value which gets absorbed into the \(\hat{\alpha}\hat{\gamma}\) estimate. </p>
+<pre><code class="language-r">mediation_scen1 &lt;- function&#40;N,alpha,beta,gamma&#41; &#123;
+  A &lt;- rbinom&#40;N,1,0.5&#41;
+  U &lt;- rnorm&#40;N&#41;
+  M &lt;- alpha*A &#43; U &#43; rnorm&#40;N&#41;
+  Y &lt;- beta*A &#43; gamma*M &#43; U &#43; rnorm&#40;N&#41;
+  
+  alpha_ &lt;- mean&#40;M&#91;A&#61;&#61;1&#93;&#41; - mean&#40;M&#91;A&#61;&#61;0&#93;&#41;
+  mod &lt;- lm&#40;Y ~ A &#43; M&#41;
+  beta_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;A&quot;&#93;&#41;
+  gamma_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;M&quot;&#93;&#41;
+  tau_ &lt;-  mean&#40;Y&#91;A&#61;&#61;1&#93;&#41; - mean&#40;Y&#91;A&#61;&#61;0&#93;&#41;
+  
+  c&#40;&quot;total&quot; &#61; beta_ &#43; alpha_*gamma_,
+    &quot;direct&quot; &#61; beta_,
+    &quot;indirect&quot; &#61; alpha_*gamma_&#41;
+&#125;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-5-1.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h3 id="2_measured_confounding">&#40;2&#41; Measured confounding</h3>
+<p>If we knew there was confounding of \(M\) and \(Y\) by \(U\) and we measured \(U\) we could estimate the direct and indirect effects while controlling for \(U\). This would fix our biases - see the graph&#33;</p>
+<pre><code class="language-r">mediation_scen2 &lt;- function&#40;N,alpha,beta,gamma&#41; &#123;
+  A &lt;- rbinom&#40;N,1,0.5&#41;
+  U &lt;- rnorm&#40;N&#41;
+  M &lt;- alpha*A &#43; U &#43; rnorm&#40;N&#41;
+  Y &lt;- beta*A &#43; gamma*M &#43; U &#43; rnorm&#40;N&#41;
+  
+  alpha_ &lt;- mean&#40;M&#91;A&#61;&#61;1&#93;&#41; - mean&#40;M&#91;A&#61;&#61;0&#93;&#41;
+  mod &lt;- lm&#40;Y ~ A &#43; M &#43; U&#41;
+  beta_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;A&quot;&#93;&#41;
+  gamma_ &lt;- as.numeric&#40;coef&#40;mod&#41;&#91;&quot;M&quot;&#93;&#41;
+  tau_ &lt;-  mean&#40;Y&#91;A&#61;&#61;1&#93;&#41; - mean&#40;Y&#91;A&#61;&#61;0&#93;&#41;
+  
+  c&#40;&quot;total&quot; &#61; beta_ &#43; alpha_*gamma_,
+    &quot;direct&quot; &#61; beta_,
+    &quot;indirect&quot; &#61; alpha_*gamma_&#41;
+&#125;</code></pre><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/causal-mediation-20210202/causal-mediation_files/figure-html/unnamed-chunk-7-1.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><h2 id="conclusion">Conclusion </h2>
+<p>This post was a quick introduction to mediation analysis and one of the potential issues that can crop up - confounding of the mediator and outcome. Measure your confounders, achieve anything. Thanks for reading.</p>
+<h3 id="references">References</h3>
+<ul>
+<li><p>Pearl, J. &#40;2014&#41;. Interpretation and identification of causal mediation. Psychological methods, 19&#40;4&#41;, 459: https://ftp.cs.ucla.edu/pub/stat_ser/r389.pdf  </p>
+</li>
+</ul>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Mon, 01 Mar 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Structural Nested Mean Models  ]]>
+  </title>
+  <link> https://oizin.github.io/posts/structural-nested-mean-models/index.html </link>
+  <guid> https://oizin.github.io/posts/structural-nested-mean-models/index.html </guid>
+  <description>
+    <![CDATA[  A description of structural nested mean models for causal inference.  ]]>
+  </description>  
+  
+  <content:encoded>
+    <![CDATA[  <h1 id="structural_nested_mean_models_for_causal_inference">Structural Nested Mean Models for Causal Inference</h1>
+<p>Oisín Fitzgerald, January 2021</p>
+<h2 id="introduction">Introduction</h2>
+<h3 id="what_problem_are_we_solving">What problem are we solving?   </h3>
+<p>Causal inference considers questions such as: what would be the impact of giving someone a particular drug? There is a sense of action in a causal question, we are going to <strong>do</strong> something &#40;hence Pearl&#39;s <em>do</em> notation &#40;Pearl, 2009&#41;&#41;. An associational question on the other hand, would ask: what is the most likely outcome of someone who is receiving a particular drug? It is passive &#40;but still useful - e.g. predictive modelling&#41;. It is generally not the case that the answers to causal and associational questions will be the same, they can even lead to seemingly conflicting results. Most medical research asks a causal question; we wish to inform decisions. It is important we use the appropriate causal methods and thinking to answer the causal, rather than associational question &#40;see Hernan and Robins &#40;2020&#41; for an in-depth treatment of this issue&#41;. There are many important considerations in answering causal questions from whether the question is worth answering, to what data needs to be collected &#40;see Ahern &#40;2018&#41; for a good outline&#41;. This post considers arguably the least important aspect - the statistical methodology used to estimate the causal model parameters. I&#39;ll outline &#40;as I poorly understand it&#41; G-estimation of <em>structural nested mean models &#40;SNMM&#41;</em> for a single timepoint and two treatment options, and show some simulations using R along the way. First a brief review of the potential outcomes framework, those familiar with it can skip to the next section.</p>
+<h3 id="potential_outcomes_framework">Potential outcomes framework</h3>
+<p>Within the potential outcomes framework causal inference becomes a missing data problem. For the case of two treatment levels \(A \in \{0,1\}\) there are two potential outcomes \(Y(1)\) and \(Y(0)\). If someone gets \(A=0\) then the observed outcome is \(Y=Y(0)\) &#40;referred to as consistency&#41;, and \(Y(1)\) is the <em>counterfactual</em>. That we only observe one potential outcome per person at a given time is referred to as the <em>fundamental problem of causal inference</em> &#40;Holland, 1986&#41;. Our focus in this article will be calculating the conditional average treatment effect &#40;CATE&#41; \(\tau(h) = E(Y(1)-Y(0)|H=h)\) where \(H\) is a vector of effect modifiers.</p>
+<p>To answer causal questions in a given dataset we require knowledge &#40;or must make assumptions about&#41; about the data generating process - in particular aspects of the treatment decision process &#40;why did the clinical give patient A a particular drug?&#41; and the outcome process &#40;what is it about patient A that increases their risk of a particular outcome?&#41;. This knowledge allows us assess whether we can assume conditional exchangeability &#40;unconfoundedness&#41;</p>
+\[
+Y(a) \perp A |H=h 
+\]
+<p>that within strata of \(H\) we can consider treatment to have been randomly assigned, and positivity, that there exists some possibility that each patient could have received either treatment</p>
+\[
+P(A=a|H=h) > 0 \text{ for all values of }h 
+\]
+<p>Conditional exchangeability will be key to constructing our estimation process and clarifies the difference between causal and associational analysis. To see this consider the canonical confounding example where sicker patients are more likely to get treated with a particular medicine &#40;figure 1&#41;. A naive estimate of the difference \(E(Y|A=1) - E(Y|A=0)\) may lead to the impression that treatment is harmful. However, if the treatment decision has been based on an illness severity factor, denoted by the random variable \(X_1\), that combines all factors predictive of the disease outcome then we have a biased result</p>
+\[E(Y|A=1) - E(Y|A=0) \ne E(Y(1) - Y(0))\]
+<p>In our example, only by accounting for \(X_1\) can we get an unconfounded case where conditional exhangeability holds and the previous inequality becomes an equality. </p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/snmm-20210118/confounding_v2.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p><em>Figure 1. Illustration of confounding. The more severely ill &#40;high X1&#41; are more likely to get treated leading to the situation where the average outcome is worse in the treated. Notice that positivity is violated in this illustration.</em></p>
+<p>In summary, we will need to make certain assumptions &#40;1&#41; consistency &#40;2&#41; unconfoundedness and &#40;3&#41; positivity around the data generating process &#40;often reasonable but unverifiable&#41; in order to be able to calculate an unbiased treatment difference. For an in-depth treatment see Hernan and Robins &#40;2020&#41;.</p>
+<h3 id="g-methods_family">G-methods Family</h3>
+<p>Not all statistical approaches that work for treatment comparison at a single timepoint generalise to situations involving time-varying treatments &#40;where there is treatment confounder feedback&#41;. The G &#40;generalised&#41; methods, developed by James Robins and colleagues - including structural nested mean models &#40;SNMMs&#41;, marginal structural models and G-computation, apply in both single and multi-stage treatment effect estimation &#40;see references&#41;. If we want to compare the effectiveness of two treatment regimes or policies &#40;e.g. intensive versus standard blood pressure control&#41; using an observational sources such as electronic medical records the G-methods are an obvious choice. Here, we describe SNMMs and G-estimation in the context of a single treatment where there are a large number of competing approaches.</p>
+<h2 id="structural_nested_mean_models">Structural Nested Mean Models</h2>
+<p>Structural nested mean models &#40;SNMMs&#41; are models for the contrast &#40;mean difference&#41; of two treatment regimes. This difference can be conditional on a set of effect modifying covariates. The term &#39;structural&#39; indicates that they are causal models, and in a longitudinal setting the model takes a &#39;nested&#39; form. Assume we observe a dataset \(Z = (H,Y,A)\) where \(H\) is a random variable indicating a patient history &#40;covariates; e.g. blood pressure&#41;, \(h_n\) is a realisation of \(H_n\) for individual \(n \in \{1,...,N\}\), \(Y\) is the outcome of interest and \(A\) is the treatment indicator. In the single timepoint setting SNMMs involves fitting a model for the CATE </p>
+\[\tau(h) = E[Y(1)-Y(0)|H=h]\]
+<p>where \(Y(a)\) is the potential outcome under treatment \(A=a\) and the variables \(X\) are effect modifiers. In particular we will discuss linear single timepoint SNMMs, where \(h_n\) indicates a individual patients treatment history and \(\phi\) a possible transformation of the original data &#40;e.g. spline&#41; resulting in a vector \(\phi(h_n)\) of length \(J\)</p>
+\[\tau(h_n) = \sum_{j=1}^J \alpha_j \phi(h_n)\]
+<p>Within medicine it is generally considered reasonable to assume the effect modifying variables \(H'\) are generally a subset of the history \(H\), with the dimension of \(H'\), \(|H'|\) possible far smaller than \(|H|\). While a large numbers of factors - genetic, environmental and lifestyle - may influence whether someone develops a particular disease their impact on the effectiveness of a particular treatment may be neglible or noisy &#40;effect modification is a higher order effect&#41; in finite sample. Nevertheless, for simplicity of notation we will assume \(H'=H\) from hereon.</p>
+<p>There are several reasons we might be interested in only estimating the treatment contrast versus the outcome model \(E(Y(a)|H=h,A=a)\) under each treatment directly. One way to think about the observed outcome \(Y\) is as being composed of two components, a <em>prognostic</em> component and a <em>predictive</em> component. The prognostic component determines an individuals likely outcome given a particular medical history, and the predictive component determines the impact of a particular treatment. We can separate the expected outcome for a patient into these components</p>
+\[\begin{aligned}
+E[Y|A=a,H=h] &= E[Y|H=h,A=0] + E[Y(a) - Y(0)|H=h] \\
+&= m_0(h) + \gamma(a,h) \tag{3}
+\end{aligned}\]
+<p>where the setting \(A=0\) in \(m_0\) corresponds to a control or baseline case. In many cases \(m_0(h)\) may be a more complex function than \(\tau(x) = \gamma(1,h)\) &#40;Hahn, Murray &amp; Carvalho, 2020&#41;. The potential for misspecification of \(m_0(h)\) or desire for more parsimonious model motivates attempting to directly model \(\tau(h)\). If the final model will be used in practise, and must be explainable to subject matter experts, since empirically \(\tau(h)\) may be simpler there may be large improvements in interpretability if we model \(\tau(h)\) rather than an alternative. The parameter set \(\psi\) of \(\tau(h)\) is estimated using G-estimation, which we turn to next.</p>
+<h2 id="a_review_independence_and_covariance">A Review: Independence and Covariance</h2>
+<p>G-estimation builds upon some basic some facts about conditional independence and covariances which we briefly review. The conditional independence of \(X\) and \(Y\) given \(Z\) is denoted as \(X \perp Y |Z=z\). For probability densities \(p\) this translates to \(p(x,y|z) = p(x|z)p(y|z)\). A direct result of this is that the conditional covariance of \(X\) and \(Y\) given \(Z\) is equal to zero.</p>
+\[\begin{aligned}
+\text{Cov}(X,Y|Z) &= E[(X - E[X|Z])(Y - E[Y|Z])|Z] \\
+ &= E[XY|Z] - E[X|Z]E[Y|Z] \\
+ &= E[X|Z]E[Y|Z] - E[X|Z]E[Y|Z] \\
+ &= 0
+\end{aligned}\]
+<p>Where the third line follows from the ability to factorise the conditional densities \(E[XY|Z] = \int \int xy p(xy|z)dxdy = \int x p(x|z) dx \int y p(y|z)dy\). We also note that 1&#41; this holds if we replace \(X\) or \(Y\) by a function \(f\) of \(X\) or \(Y\) and \(Z\), for example \(f(X,Z) = X - E(X|Z)\) and 2&#41; relatedly that \(E[X(Y - E[Y|Z])|Z] = 0\).</p>
+<h2 id="g-estimation">G-Estimation</h2>
+<p>G-estimation is an approach to determining the parameters of a SNMM. As we are modelling a treatment contrast in a situation where only one treatment is observed per individual we need a method that accounts for this missingness. There are two explanations below, the second is more general, with some repitition.</p>
+<h3 id="explanation_1_additive_rank_preservation">Explanation 1: Additive Rank Preservation</h3>
+<p>One approach to explaining G-estimation is through assuming additive rank preservation with regard to the treatment effect &#40;Hernan &amp; Robins, 2020&#41;. Additive rank preservation is the assumption that the treatment effect is the same for everyone, that \(Y(1)-Y(0) = \psi_0\). We emphasise that this is at the individual level &#40;see figure 2&#41;. As shown later it is not a requirement for G-estimation that this assumption holds, it is expository tool.</p><figure style="text-align:center;">
+<img src="https://oizin.github.io/assets/snmm-20210118/rankpreservation_v2.png" style="padding:0; width:100%" alt=" "/>
+<figcaption> </figcaption>
+</figure><p><em>Figure 2. Illustration of additive and nonadditive rank preservation</em></p>
+<p>Notice that for the case of additive rank preservation with no effect modification the following holds</p>
+\[\begin{aligned}
+Y(0) &= Y - A[Y(1)-Y(0)] \\
+Y(0) &= Y - A\psi \\
+\end{aligned}\]
+<p>If we call this final expression \(G(\psi) = Y - A\psi\) then utilising the assumption of unconfoundedness \(Y(a) \perp A|H=h\) this should be uncorrelated with any function \(S(A)\) of the treatment assignment mechanism, conditional on the confounders \(H\). For this case of no effect modification we&#39;ll let \(S(A) = A\) &#40;we&#39;ll return to choice of \(S\) later&#41;. We then have the estimating equation \(U(\psi;H,A) = \sum_{n=1}^N G_n(\psi)[A_n - E(A_n|X_n)] = 0\). For the cases where \(E(A_n|H_n = h_n)\) is unknown we replace it with an estimate. This equation can then be solved for the unknown \(\psi\), giving us an approach towards estimation. We continues this case below in <strong>Example 1</strong>.</p>
+<h3 id="explanation_2_more_general_case">Explanation 2: More General Case</h3>
+<p>Now consider the more general case where \(\psi\) is a vector of parameters of our SNMM \(\tau_{\psi}(h) = E(Y(1)-Y(0)|H=h)\). Our analog of \(G(\psi)\) is now equal to \(Y(0)\) in expectation</p>
+\[\begin{aligned}
+E(G(\psi)|H) &=E[Y - A(Y(1)-Y(0))|H] \\
+&= E[Y|H] - E[A(Y(1)-Y(0))|H] \\
+ &= E[AY(1) + (1-A)Y(0)|H] - E[A(Y(1)-Y(0))|H] \\
+ &= E[Y(0)|H]
+\end{aligned}\]
+<p>Where we make use of the consistency assumption \(Y = AY(1) + (1-A)Y(0)\) in going from line two to three. As a result we have the following estimating equation \(U(\tau;A_n,H_n) = \sum_{n=1}^N G_n(\psi)(S(A_n,H_n)-E[S(A_n,H_n)]) = 0\) for the general case in a single stage setting which is zero in expectation \(E(U|L) = 0\). Note that we <em>could</em> mean center \(G(\psi)\) which we will return to. For the case where \(\tau_{\psi}(h)\) can be expressed as a linear model this can be explicity solved, we outline this case below in <strong>Example 2</strong>.</p>
+<h2 id="some_examples">Some examples</h2>
+<h3 id="example_1">Example 1</h3>
+<p>In the case of \(\tau(h) = \psi_0\) &#40;the average treatment effect &#40;ATE&#41;&#41;, i.e. \(G(\psi_0) = Y - \psi_0A\) and \(S(A) = A\) we have an explicit solution</p>
+\[\begin{aligned}
+U(\psi_0;H,A) &= 0 \\
+\sum_n^N G(\psi_0) [A - E(A_n|H_n=h_n)] &= 0 \\
+\sum_n^N [Y_n - \psi_0A_n] [A_n - E(A|H_n)] &= 0 \\ 
+\psi_0 = \sum_n^N \frac{Y_n[A_n - \pi(h_n)]}{\sum_n^N A_n [A_n - \pi(h_n)]}
+\end{aligned}\]
+<p>As mentioned, in observational studies where the treatment assignment mechanism is unknown we replace \(\pi(h_n) = E(A|H_n=h_n)\) &#40;the propensity score&#41; with an estimate, using e.g. logistic regression or more complex models.</p>
+<p>Let&#39;s simulating this situation for a data generating model of the form </p>
+\[
+\underline{\text{Simulation 1 settings}} \\
+E(Y(a)|H_1=h_1,A=a) = -1.4 + 0.8h_1 + \tau_0a + \epsilon \\
+\tau_0 = 2.5\\
+\epsilon \sim \text{Normal}(0,1) \\
+H_1 \sim \text{Uniform}(-0.5,3.0)\\
+P(A=1|H_1=h_1) = (1 + \text{exp}(2 - 1.8h_1)^{-1}\\
+\]
+<p>Notice observations with larger values of \(H_1\) are more likely to be treated. We&#39;ll compare fitting a SNMM for the parameter \(\tau_0\) with fitting an linear model for the full conditional expectation. The simulation set up is adapted from Chakraborty and Moodie &#40;2013&#41;. As shown in figure 3 both methods return similar results. This is to be expected; the advantage of SNMMs and G-estimation is primarily in situations where the prognostic component \(m_0(h)\) is complex and we want a parsimonious model &#40;we show this case below&#41;, and in time-varying treatment setting &#40;in part 2&#41;.</p>
+<pre><code class="language-r">## SIMULATION 1
+M &lt;- 500 # number of rins
+tauM &lt;- replicate&#40;M, &#123;
+  N &lt;- 100
+  # generate data
+  h1 &lt;- runif&#40;N,-0.5,3&#41;
+  ps &lt;- function&#40;x&#41; 1/&#40;1 &#43; exp&#40;2 - 1.8*h1&#41;&#41;
+  a &lt;- 1*&#40;ps&#40;h1&#41; &lt; runif&#40;N&#41;&#41;
+  y &lt;- -1.4 &#43; 0.8*h1 &#43; 2.5*a &#43; rnorm&#40;N&#41;
+  # estimate probability of treatment
+  pm &lt;- glm&#40;a ~ h1,family &#61; binomial&#40;&#41;&#41;
+  ph &lt;- fitted&#40;pm&#41;
+  w &lt;- &#40;a-ph&#41;
+  # estimate treatment effect
+  tauh_g &lt;- sum&#40;w*y&#41;/sum&#40;a*w&#41;
+  tauh_lm &lt;- lm&#40;y ~ h1 &#43; a&#41;&#36;coef&#91;&quot;a&quot;&#93;
+  c&#40;tauh_g,tauh_lm&#41;
+&#125;&#41;</code></pre>
+<p><img src="https://oizin.github.io/assets/snmm-20210118/unnamed-chunk-25-1.png" alt="A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM" /></p>
+<p><em>Figure 3. A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM</em></p>
+<h3 id="example_2">Example 2</h3>
+<p>Now consider the case where \(\tau(h)\) is a function of several variables. Our decision rule for which treatment to use must consider several variables. We can model this using a linear model with covariates \(\tau(h_n) = \psi_0 + \sum_{k=1}^K\psi_k h_{kn}\). The resulting empirical estimating equation is </p>
+\[\begin{aligned}
+U(\psi;A_n,H_n) &= \sum_{n=1}^{N}G(\psi)[S(A_n,H_n)-E(S(A_n,H_n)|H_n)] \\
+U(\psi;A_n,H_n) &= \sum_{n=1}^{N}[Y_n - (\psi_0 + \sum_{k=1}^K\psi_k h_{kn})][S(A_n,H_n)-E(S(A_n,H_n)|H_n)] \\
+\end{aligned}\]
+<p>Here we have replaced \(S(A_n)\) with \(S(A_n,H_n)\) which changes nothing as \(H_n\) is treated as a constant. As stated this appears to be a single equation with \(K+1\) unknowns. However, as \(S(A_n,H_n)\) is an &#39;arbitrary&#39; function we can convert it into \(K+1\) equations through choosing \(S(A_n,H_n)\) to be the vector valued function \(S(A_n,H{*n}) = (1,h_1,,...h_K)^t\cdot A_n\). This gives \(K+1\) estimating equations</p>
+\[\begin{aligned}
+U_1(\psi;A_n,H_n) &= \sum_{n=1}^{N}[Y_n - (\psi_0 + \sum_{k=1}^K\psi_k x_{kn})][A_n-\pi(h_n)] \\
+U_2(\psi;A_n,H_n) &= \sum_{n=1}^{N}[Y_n - (\psi_0 + \sum_{k=1}^K\psi_k x_{kn})][A_n-\pi(h_n)] h_{1n} \\
+ \dots \\
+U_K(\psi;A_n,H_n) &= \sum_{n=1}^{N}[Y_n - (\psi_0 + \sum_{k=1}^K\psi_k x_{kn})][A_n-\pi(h_n)] h_{Kn} \\
+\end{aligned}\]
+<p>In order to write the above estimating equations in matrix/vector form let \(\textbf{H}\) be our \(n \times (K+1)\) effect modifier/confounder design matrix, \(\textbf{A} = \text{diag}(A_1,A_2,\dots,A_N)\) and \(\textbf{W} = \text{diag}(A_1-\pi(h_1),\dots,A_N-\pi(h_N))\). Then our \(K+1\) estimating equations in matrix/vector form are \(\textbf{U}(\psi;A_n,H_n) = \textbf{H}^t\textbf{W}(\textbf{y}-\textbf{A}\textbf{H}\boldsymbol{\psi})\). Solving for \(\boldsymbol{\psi}\) gives</p>
+\[\begin{aligned}
+\boldsymbol{\psi} &= (\textbf{H}^t\textbf{W}\textbf{A}\textbf{H})^{-1}\textbf{H}^t\textbf{W}\textbf{y}
+\end{aligned}\]
+<p>Simulating this situation, again building the settings off Chakraborty and Moodie &#40;2013&#41;, we have two settings, with the \(m_0\) component &#40;3&#41; alternatively linear and non-linear. The treatment effect component \(\tau(h)\) is always linear - we&#39;ll come to non-linar \(\tau(h)\) next. </p>
+\[
+\underline{\text{Simulation 2 settings}} \\
+\text{linear case:}\hspace{5 mm}E(Y(a)|H_1=h_1,A=a) = -1.4 + 0.8h_1 + \psi_0 a + \psi_1 a  h_1 + \epsilon \\
+\text{nonlinear case:}\hspace{4 mm}E(Y(a)|H_1=h_1,A=a) = -1.4h_1^3 + e^{h_1} + \psi_0 a + \psi_1 a  h_1 + \epsilon \\
+\text{(all other setting as simulation 1)}
+\]
+<p>We compare G-estimation of the SNMM with a &#40;linear&#41; outcome model for the full expectation \(E(Y|H,A)\). While this shows the strength of SNMM in avoiding misspecification it is not entirely fair, as in an empirical setting a simple plot of the data would reveal that a linear model is a bad idea.</p>
+<pre><code class="language-r">gest_snmm &lt;- function&#40;X,y,a,ph&#41; &#123;
+  w &lt;- &#40;a-ph&#41;
+  W &lt;- diag&#40;w&#41;
+  A &lt;- diag&#40;a&#41;
+  t1 &lt;- solve&#40;t&#40;X&#41; &#37;*&#37; W &#37;*&#37; A &#37;*&#37; X&#41;
+  t2 &lt;- t&#40;X&#41; &#37;*&#37; W &#37;*&#37; y
+  t1 &#37;*&#37; t2
+&#125;</code></pre>
+<pre><code class="language-r">## SIMULATION 2
+M &lt;- 500  # number of runs
+tauM &lt;- replicate&#40;M, &#123;
+  # generate data for linear and non-linear cases
+  N &lt;- 100
+  h1 &lt;- runif&#40;N,-0.5,3&#41;
+  ps &lt;- function&#40;x&#41; 1/&#40;1 &#43; exp&#40;2 - 1.8*h1&#41;&#41;
+  a &lt;- 1*&#40;ps&#40;h1&#41; &lt; runif&#40;N&#41;&#41;
+  psi0 &lt;- 2.5
+  psi1 &lt;- 1.5
+  y1 &lt;- -1.4 &#43; 0.8*h1 &#43; psi0*a &#43; psi1*a*h1 &#43; rnorm&#40;N&#41;
+  y2 &lt;- -1.4*h1^3 &#43; exp&#40;h1&#41; &#43; psi0*a &#43; psi1*a*h1 &#43; rnorm&#40;N&#41;
+  # estimate probability of treatment
+  pm &lt;- glm&#40;a ~ h1,family &#61; binomial&#40;&#41;&#41;
+  H &lt;- cbind&#40;rep&#40;1,N&#41;,h1&#41;
+  ph &lt;- fitted&#40;pm&#41;
+  # estimate treatment effect
+  g1 &lt;- as.vector&#40;gest_snmm&#40;H,y1,a,ph&#41;&#41;
+  g2 &lt;- as.vector&#40;gest_snmm&#40;H,y2,a,ph&#41;&#41;
+  ols1 &lt;- lm&#40;y1 ~ h1 &#43; a &#43; h1*a&#41;&#36;coef&#91;c&#40;&quot;a&quot;,&quot;h1:a&quot;&#41;&#93;
+  ols2 &lt;- lm&#40;y2 ~ h1 &#43; a &#43; h1*a&#41;&#36;coef&#91;c&#40;&quot;a&quot;,&quot;h1:a&quot;&#41;&#93;
+  c&#40;g1,g2,ols1,ols2&#41;
+&#125;&#41;</code></pre>
+<p><img src="https://oizin.github.io/assets/snmm-20210118/unnamed-chunk-28-1.png" alt="A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM for a linear outcome model." />  </p>
+<p><em>Figure 4. A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM for a linear outcome model.</em></p>
+<p><img src="https://oizin.github.io/assets/snmm-20210118/unnamed-chunk-29-1.png" alt="A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM for a non-linear outcome model." />  </p>
+<p><em>Figure 5. A comparison of OLS estimation of the outcome model E&#40;Y|A,H&#41; and G-estimation of the SNMM for a non-linear outcome model.</em></p>
+<h2 id="more_efficient_g-estimation">More efficient G-estimation</h2>
+<p>Returning to the idea that setting \(U(\psi) = 0\) follows from \(\text{Cov}(Y(0),S(A,H)|H) = 0\), it turns out there is a more efficient form of G-estimation if we take full advantage of this equality. As per <a href="https://en.wikipedia.org/wiki/Efficiency_&#40;statistics&#41;">Wikipedia</a> &quot;a more efficient estimator needs fewer observations than a less efficient one to achieve a given performance&quot;.</p>
+<p>Above we use an empirical version of \(E(Y(0)(A-S(A|H))|H)=0\) as out estimating equation. That is because we don&#39;t know \(E(Y(0)|H)\). However, we can estimate it; to do this fit a model and use it to predict \(\hat{m}_0(h) = E(Y(0)|H)\) for all observations. Then rather than using \(y\) in our estimation procedures we use \(\tilde{y} = y-\hat{m}_0(h)\).  The need to estimate several models before G-estimation may seem to add the number of possible sources of error however it actually has the opposite impact. This approach is doubly robust, meaning that if either x or y are correctly specified then the estimated causal effect is unbiased. Correct specification refers to the function form of the model, e.g. aspects such as linear/non-linear effects and interactions. Failure to include confounders would lead to bias even if the model was &quot;correct&quot; for the measured confounders. For our linear model, with m being, the doubly robust estimate is</p>
+\[\begin{aligned}
+\hat{\boldsymbol{\psi}}_e &= (\textbf{H}^t\textbf{W}\textbf{A}\textbf{H})^{-1}\textbf{H}^t\textbf{W}(\textbf{y}-\hat{m}_0)
+\end{aligned}\]
+<p>What is the intuition behind this? We can think of it as information simplification - by taking out \(m_0(h)\) we are allowing the estimation to focus on changes with \(H\) for \(A=0\) is informative about what variation is not due to the treatment effect. Generally noise reduction \(\rightarrow\) signal enhancement. For a more detailed argument see Athey and Imbens &#40;2019&#41; or Nie and Wager &#40;2017&#41;. We can still use our avoid function <code>gest_snmm</code> for efficient G-estimation, but rather than passing in the actual y we pass in \(\tilde{y} = y - E(Y|A=0,H=h)\) which we can estimate using an approach of choice.</p>
+<h2 id="non-linear_effect_modification">Non-linear effect modification</h2>
+<p>So far we have talked about and simulated linear \(\tau(h)\), but what if the effect modification is non-linear? Restricting ourselves to linear models in the age of machine learning seems so uncool. I&#39;ll add that many of the ideas underlying G-estimation and snmm come up in gradient trees &#40;Athey 2019&#41; or R-learning &#40;Nie &amp; Wager 2017&#41;. As a first step towards non-linear models for \(\tau\) we&#39;ll consider approaches that involve transformations of the design matrix \(H\) &#40;the matrix containing our effect modifiers and generally a vector of 1s for the main &#40;first order&#41; effect of treatment&#41;. So we have a transformation \(\Phi: \mathbb{R}^{n \times p} \to \mathbb{R}^{n \times q}\), including methods such as the Fourier transform, polynomial expanstions, spline basis matrices. We then replace \(X\) with \(\Phi(H)\) in our estimation procedure</p>
+\[\begin{aligned}
+\hat{\boldsymbol{\psi}}_e &= (\boldsymbol{\Phi}^t\textbf{W}\textbf{A}\boldsymbol{\Phi})^{-1}\boldsymbol{\Phi}^t\textbf{W}(\textbf{y}-\hat{m}_0)
+\end{aligned}\]
+<p>To illustrate this, lets do another simulation. In this case \(\tau\) is non-linear.</p>
+\[
+\underline{\text{Simulation 3 settings}} \\
+tau(h_1,h_2) = \psi_0 + 0.7 e^{h1} + 0.5h_2 + 0.4 h_2^2 + \epsilon_1 \\
+E(Y(a)|H=h,A=a) = 1.2h_2 - 1.4h_2^2 + 0.8e^{h_1} + a\tau(h) + 3\epsilon_2 \\
+\psi_0 = 2.5 \\
+\psi_1 = 1.5 \\
+H_1 \sim \text{Uniform}(-0.5,3) \\
+H_2 \sim \text{Normal}(2,3) \\
+\epsilon_1,\epsilon_2 \sim N(0,1) \\
+P(A=1|H=h) = (1 + \text{exp}(2 - 1.8h_1 + 0.2h_2)^{-1}\\
+\]
+<p>We have increased the number of variables to two &#40;clearly the simulations should not be relied upon&#33;&#41;. For this simulation I&#39;ve increased the sample size to \(N=1000\).</p>
+<pre><code class="language-r">## SIMULATION 3
+M &lt;- 500  # number of runs
+tauM &lt;- replicate&#40;M, &#123;
+  # generate data
+  N &lt;- 1000
+  x1 &lt;- runif&#40;N,-0.5,3&#41;
+  x2 &lt;- rnorm&#40;N,2,3&#41;
+  ps &lt;- function&#40;x1,x2&#41; 1/&#40;1 &#43; exp&#40;2 - 1.8*x1 &#43; 0.2*x2&#41;&#41;
+  a &lt;- 1*&#40;ps&#40;x1,x2&#41; &lt; runif&#40;N&#41;&#41;
+  psi0 &lt;- 2.5
+  psi1 &lt;- 1.5
+  tau &lt;- psi0 &#43; 0.7*exp&#40;x1&#41; &#43; 0.5*x2 &#43; 0.4*x2^2 &#43; rnorm&#40;N&#41;
+  y &lt;- 1.2*x2 - 1.4*x2^2 &#43; 0.8*exp&#40;x1&#41; &#43; a*tau &#43; rnorm&#40;N,sd &#61; 3&#41;
+  # estimate probability of treatment
+  pm &lt;- glm&#40;a ~ x1 &#43; x2,family &#61; binomial&#40;&#41;&#41;
+  Xs &lt;-  cbind&#40;rep&#40;1,N&#41;,bs&#40;x1&#41;,bs&#40;x2&#41;&#41;
+  ph &lt;- fitted&#40;pm&#41;
+  # estimate treatment effect
+  ols &lt;- lm&#40;y ~ bs&#40;x1&#41; &#43; bs&#40;x2&#41; &#43; a &#43; bs&#40;x1&#41;*a &#43; bs&#40;x2&#41;*a&#41;
+  df0 &lt;- data.frame&#40;x1,x2,a&#61;0&#41;
+  df1 &lt;- data.frame&#40;x1,x2,a&#61;1&#41;
+  tau_ols &lt;- predict&#40;ols,df1&#41; - predict&#40;ols,df0&#41;
+  g &lt;- gest_snmm&#40;Xs,y - predict&#40;ols,df0&#41;,a,ph&#41;
+  tau_g &lt;- as.vector&#40;Xs &#37;*&#37; g&#41;
+  c&#40;bias_g&#61;mean&#40;&#40;tau_g-tau&#41;&#41;,
+    bias_l&#61;&#40;mean&#40;&#40;tau_ols-tau&#41;&#41;&#41;,
+    mse_g&#61;mean&#40;&#40;tau_g-tau&#41;^2&#41;,
+    mse_l&#61;&#40;mean&#40;&#40;tau_ols-tau&#41;^2&#41;&#41;&#41;
+&#125;&#41;</code></pre>
+<p><img src="https://oizin.github.io/assets/snmm-20210118/unnamed-chunk-31-1.png" alt="Average bias of individual treatment effect" /></p>
+<p><em>Figure 6. Average bias of individual treatment effect</em></p>
+<p><img src="https://oizin.github.io/assets/snmm-20210118/unnamed-chunk-32-1.png" alt="Average meas square error of individual treatment effect" /></p>
+<p><em>Figure 7. Average meas square error of individual treatment effect</em></p>
+<h2 id="standard_errors_and_confidence_intervals">Standard errors and confidence intervals</h2>
+<p>Quantifying uncertainty in our parameter estimates is important. For G-estimation of SNMMs the non-parametric bootstrap offers a general approach to estimation of standard errors, allowing incorporation of the uncertainty arising from estimating \(\pi(h)\) and \(m_0(h)\).</p>
+<h2 id="conclusion_and_up-next">Conclusion and up-next</h2>
+<p>We&#39;ve outlined the linear SNMM and G-estimation, focusing on the single stage setting. While SNMM are not often used in practise I hope that as we go through this series their strengths will become clear. We have largely dealt with simplistic situations in which the CATE is of interest to emphasise the fundamentals of the method. G-estimation is based on setting an empirical covariance equal to zero building off the assumptions from causal inference - ignorability/unconfoundedess, consistency and positivity. As mentioned at the beginning there is much more to causal inference than the methods and often subject matter knowledge plays an important role in justifying the reasonableness of these assumptions and designing the data collection/extraction process.</p>
+<p>There are several things we haven&#39;t covered in this tour of SNMM and G-estimation:</p>
+<ul>
+<li><p>Non-continous outcomes - in particular binary outcomes</p>
+</li>
+<li><p>More than point estimates - quantiles or distributions</p>
+</li>
+<li><p>Treatments that vary over time</p>
+</li>
+<li><p>Simulations that really test SNMM &#40;or it&#39;s competitors&#41; in the complex and noisy datasets common in data science practise</p>
+</li>
+</ul>
+<p>We&#39;ll come back to these topics, in particular time varying treatments in subsequent posts. Thanks for reading.</p>
+<p><strong>Thanks</strong> to Oscar Perez Concha for reading and discussing drafts of this.</p>
+<h2 id="reading_and_links">Reading and links</h2>
+<ul>
+<li><p>Ahern, Jennifer. 2018. Start with the ’c-Word,’ Follow the Roadmap for Causal Inference. American Public Health Association.  </p>
+</li>
+<li><p>Athey, Susan, Julie Tibshirani, Stefan Wager, and others. 2019. Generalized Random Forests. The Annals of Statistics 47 &#40;2&#41;: 1148–78.  </p>
+</li>
+<li><p>Chakraborty, Bibhas, and Erica EM Moodie. 2013. Statistical Methods for Dynamic Treatment Regimes: Reinforcement Learning, Causal Inference, and Personalized Medicine. Springer.  </p>
+</li>
+<li><p>Hahn, P Richard, Jared S Murray, Carlos M Carvalho, and others. 2020. Bayesian Regression Tree Models for Causal Inference: Regularization, Confounding, and Heterogeneous Effects. Bayesian Analysis.  </p>
+</li>
+<li><p>Hernan, Miguel A, and James M Robins. 2020. Causal Inference: What If?” Boca Raton: Chapman &amp; Hall/CRC  </p>
+</li>
+<li><p>Holland, Paul W. 1986. Statistics and Causal Inference. Journal of the American Statistical Association 81 &#40;396&#41;: 945–60.  </p>
+</li>
+<li><p>Nie, Xinkun, and Stefan Wager. 2017. Quasi-Oracle Estimation of Heterogeneous Treatment Effects. arXiv Preprint arXiv:1712.04912.  </p>
+</li>
+<li><p>Pearl, Judea, and others. 2009. Causal Inference in Statistics: An Overview. Statistics Surveys 3: 96–146.</p>
+</li>
+<li><p>Robins, James. 1986. A New Approach to Causal Inference in Mortality Studies with a Sustained Exposure Period—Application to Control of the Healthy Worker Survivor Effect. Mathematical Modelling 7 &#40;9-12&#41;: 1393–1512.  </p>
+</li>
+<li><p>Robins, James M, Donald Blevins, Grant Ritter, and Michael Wulfsohn. 1992. G-Estimation of the Effect of Prophylaxis Therapy for Pneumocystis Carinii Pneumonia on the Survival of Aids Patients. Epidemiology, 319–36.  </p>
+</li>
+<li><p>Robins, James M, Miguel Angel Hernan, and Babette Brumback. 2000. Marginal Structural Models and Causal Inference in Epidemiology. LWW.  </p>
+</li>
+<li><p>Vansteelandt, Stijn, Marshall Joffe, and others. 2014. Structural Nested Models and G-Estimation: The Partially Realized Promise. Statistical Science 29 &#40;4&#41;: 707–31.  </p>
+</li>
+</ul>
+    <script src="https://utteranc.es/client.js"
+        repo="oizin/oizin.github.io"
+        issue-term="title"
+        label="Comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+    </script> ]]>
+  </content:encoded>
+    
+  <pubDate>Fri, 01 Jan 2021 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Oisin Fitzgerald</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>
