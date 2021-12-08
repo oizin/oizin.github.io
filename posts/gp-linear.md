@@ -53,6 +53,7 @@ For example if there is one input we have $w = (w_0, w_1)^t$ and setting $\alpha
 
 ```julia:./code/gp-linear
 using Plots, Random, Distributions, LinearAlgebra
+plotlyjs()
 Random.seed!(1)
 α = 1.0
 d = MvNormal([0,0], (1/α)*I)

@@ -22,6 +22,7 @@ Baydin, A. G., Pearlmutter, B. A., Radul, A. A., & Siskind, J. M. (2018). Automa
 [https://www.jmlr.org/papers/volume18/17-468/17-468.pdf](https://www.jmlr.org/papers/volume18/17-468/17-468.pdf)
 @@
 
+## Introduction
 Automatic differentiation (autodiff) reminds me of Arthur C. Clarke's quote "any sufficiently advanced technology is indistinguishable from magic". Whereas computer based symbolic and numerical 
 differentiation seem like natural descendants from blackboard based calculus, the first time I learnt
 about autodiff (through [Pytorch](https://pytorch.org/)) I was amazed. It is not that the ideas underlying autodiff themselves
@@ -47,6 +48,7 @@ Round-off error occurs because not every number is represented in the set of flo
 
 ```julia:finite
 using Plots
+plotlyjs()
 h = 10 .^ range(-15, -3, length=1000)
 x0 = 0.2
 f(x) = (64*x*(1-x)*(1-2*x)^2)*(1-8*x+8*x^2)^2
